@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>无线 IMU 运动捕捉台</title>
+  <link rel="stylesheet" href="/static/dashboard.css">
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">IMU</div>
+        <div>
+          <strong>无线 IMU</strong>
+          <span>实时姿态与步态诊断</span>
+        </div>
+      </div>
+
+      <div class="side-status">
+        <div>
+          <span>连接状态</span>
+          <strong id="connectionText">初始化</strong>
+        </div>
+        <i id="connectionDot" class="status-dot idle"></i>
+      </div>
+
+      <div class="side-heading">
+        <span>设备</span>
+        <strong id="deviceCount">0</strong>
+      </div>
+      <div id="deviceList" class="device-list"></div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">BS-WF91 / NGIMU Bridge</p>
+          <h1 id="pageTitle">多设备姿态与步态诊断台</h1>
+        </div>
+        <div class="toolbar">
+          <button id="reset3dView" class="tool-button" type="button">重置 3D</button>
+          <button id="resetSpaceView" class="tool-button" type="button">重置空间</button>
+          <button id="refreshToggle" class="tool-button" type="button">暂停刷新</button>
+          <button id="resetTrack" class="tool-button" type="button">重置轨迹</button>
+          <button id="clearHistory" class="tool-button danger" type="button">清空曲线</button>
+        </div>
+      </header>
+
+      <section class="device-strip">
+        <div>
+          <span>当前设备</span>
+          <strong id="selectedDevice">等待设备</strong>
+        </div>
+        <div>
+          <span>设备地址</span>
+          <strong id="selectedAddress">--</strong>
+        </div>
+        <div>
+          <span>设备时间</span>
+          <strong id="selectedTime">--</strong>
+        </div>
+        <div>
+          <span>最近接收</span>
+          <strong id="lastSeen">--</strong>
+        </div>
+        <div>
+          <span>追踪模式</span>
+          <strong id="trackerMode">--</strong>
+        </div>
+        <div>
+          <span>运动状态</span>
+          <strong id="motionStateText">--</strong>
+        </div>
+      </section>
+
+      <section id="deviceCompare" class="device-compare"></section>
+
+      <section class="visual-grid">
+        <article class="visual-panel attitude-panel">
+          <header>
+            <div>
+              <h2>3D 姿态</h2>
+              <span id="attitudeMode">NGIMU 真实模型</span>
+            </div>
+            <strong id="attitudeAngles">-- / -- / --</strong>
+          </header>
+          <div id="attitudeMount" class="attitude-mount">
+            <canvas id="attitudeCanvas"></canvas>
+          </div>
+        </article>
+
+        <article class="visual-panel space-panel">
+          <header>
+            <div>
+              <h2>实时位移轨迹</h2>
+              <span id="spaceModeText">持续记录 TrackX / TrackY / TrackZ</span>
+            </div>
+            <strong id="spaceSummary">--</strong>
+          </header>
+          <div id="spaceMount" class="space-mount">
+            <canvas id="spaceCanvas"></canvas>
+          </div>
+          <div class="map-foot">
+            <span id="spaceCoordinateText">空间坐标 --</span>
+            <span id="spaceScaleText">比例尺 --</span>
+          </div>
+        </article>
+      </section>
+
+      <section id="metricGrid" class="metric-grid"></section>
+
+      <section class="chart-grid">
+        <article class="chart-card">
+          <header>
+            <h2>加速度</h2>
+            <span>g</span>
+          </header>
+          <canvas id="accChart"></canvas>
+          <div class="legend" data-legend="accChart"></div>
+        </article>
+
+        <article class="chart-card">
+          <header>
+            <h2>线加速度</h2>
+            <span>g</span>
+          </header>
+          <canvas id="linearChart"></canvas>
+          <div class="legend" data-legend="linearChart"></div>
+        </article>
+
+        <article class="chart-card">
+          <header>
+            <h2>地球坐标加速度</h2>
+            <span>g</span>
+          </header>
+          <canvas id="earthChart"></canvas>
+          <div class="legend" data-legend="earthChart"></div>
+        </article>
+
+        <article class="chart-card">
+          <header>
+            <h2>角速度</h2>
+            <span>deg/s</span>
+          </header>
+          <canvas id="gyroChart"></canvas>
+          <div class="legend" data-legend="gyroChart"></div>
+        </article>
+
+        <article class="chart-card">
+          <header>
+            <h2>欧拉角</h2>
+            <span>deg</span>
+          </header>
+          <canvas id="angleChart"></canvas>
+          <div class="legend" data-legend="angleChart"></div>
+        </article>
+
+        <article class="chart-card">
+          <header>
+            <h2>磁场</h2>
+            <span>uT</span>
+          </header>
+          <canvas id="magChart"></canvas>
+          <div class="legend" data-legend="magChart"></div>
+        </article>
+
+        <article class="chart-card">
+          <header>
+            <h2>高度与速度</h2>
+            <span>m / m/s</span>
+          </header>
+          <canvas id="motionChart"></canvas>
+          <div class="legend" data-legend="motionChart"></div>
+        </article>
+
+        <article class="chart-card">
+          <header>
+            <h2>电量与信号</h2>
+            <span>% / dBm</span>
+          </header>
+          <canvas id="statusChart"></canvas>
+          <div class="legend" data-legend="statusChart"></div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script src="/static/dashboard.js"></script>
+</body>
+</html>

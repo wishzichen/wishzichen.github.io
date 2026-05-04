@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NGIMU 硬件接入 · 智守银龄</title>
+    <meta name="description" content="智守银龄 NGIMU/WiFi IMU 硬件接入面板，支持本地桥接 API、设备列表、实时传感数据和三维轨迹状态查看。">
+    <link rel="stylesheet" href="./static/css/style.css?v=20260429-ngimu">
+</head>
+<body>
+    <div class="dot-grid"></div>
+    <div class="bg-mesh"></div>
+
+    <div class="container realtime-shell hardware-shell">
+        <header class="header glass-dark">
+            <div class="logo">
+                <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">
+                    <defs>
+                        <linearGradient id="ngimu-logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#34d399"/>
+                            <stop offset="100%" style="stop-color:#60a5fa"/>
+                        </linearGradient>
+                    </defs>
+                    <circle cx="20" cy="20" r="18" fill="none" stroke="url(#ngimu-logo-gradient)" stroke-width="2"/>
+                    <path d="M12 23c4-7 12-7 16 0" stroke="url(#ngimu-logo-gradient)" stroke-width="2" stroke-linecap="round" fill="none"/>
+                    <path d="M17 17h6m-3-3v6" stroke="url(#ngimu-logo-gradient)" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <div class="logo-text">
+                    <span class="logo-title">智守银龄</span>
+                    <span class="logo-subtitle">NGIMU 硬件接入</span>
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <div class="pill pill-phase" id="ngimu-connection-pill">等待本地 API</div>
+                <div class="pill pill-live" id="ngimu-device-pill">设备 0 台</div>
+                <a href="./index.html" class="tool-btn">模型预测页</a>
+                <a href="./realtime.html" class="tool-btn">实时监测页</a>
+            </div>
+        </header>
+
+        <div class="hardware-layout">
+            <section class="glass-card hardware-connection-card">
+                <div class="card-header card-header-wide">
+                    <div>
+                        <h3>本地桥接 API</h3>
+                        <p class="card-copy">面向 WiFi IMU/NGIMU 数据流的本地接入面板，默认匹配统一桥接器 `18000` 与独立看板 `8000` 两种端口。</p>
+                    </div>
+                    <div class="hardware-actions">
+                        <button type="button" class="tool-btn" id="api-cycle">切换端口</button>
+                        <button type="button" class="tool-btn tool-btn-primary" id="api-apply">连接</button>
+                    </div>
+                </div>
+
+                <div class="hardware-api-row">
+                    <label class="hardware-field" for="api-base-input">
+                        <span>API 地址</span>
+                        <input id="api-base-input" type="url" value="http://127.0.0.1:18000/api" spellcheck="false">
+                    </label>
+                    <label class="hardware-field" for="device-select">
+                        <span>当前设备</span>
+                        <select id="device-select">
+                            <option value="">等待设备</option>
+                        </select>
+                    </label>
+                    <button type="button" class="tool-btn" id="refresh-devices">刷新设备</button>
+                    <a class="tool-btn" id="api-open-dashboard" href="http://127.0.0.1:18000/" target="_blank" rel="noreferrer">打开看板</a>
+                </div>
+            </section>
+
+            <section class="glass-card compact">
+                <div class="card-header row-header">
+                    <h3>接入状态</h3>
+                    <span class="badge badge-cyan" id="poll-badge">轮询中</span>
+                </div>
+                <div class="stat-grid hardware-stat-grid">
+                    <div class="stat-box">
+                        <span>设备数</span>
+                        <strong id="device-count">0</strong>
+                    </div>
+                    <div class="stat-box">
+                        <span>最近设备</span>
+                        <strong id="latest-device">--</strong>
+                    </div>
+                    <div class="stat-box">
+                        <span>历史容量</span>
+                        <strong id="history-limit">--</strong>
+                    </div>
+                    <div class="stat-box">
+                        <span>最近更新</span>
+                        <strong id="latest-seen">--</strong>
+                    </div>
+                </div>
+            </section>
+
+            <div class="panel-grid panel-grid-two hardware-split">
+                <section class="glass-card compact">
+                    <div class="card-header row-header">
+                        <h3>姿态与运动</h3>
+                        <span class="badge badge-emerald" id="motion-state">--</span>
+                    </div>
+                    <div class="gait-metrics metrics-six">
+                        <div class="metric-item">
+                            <div class="metric-label">俯仰</div>
+                            <div><span class="metric-value neon-text-cyan" id="angle-x">0.0</span><span class="metric-unit">度</span></div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">横滚</div>
+                            <div><span class="metric-value neon-text-emerald" id="angle-y">0.0</span><span class="metric-unit">度</span></div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">航向</div>
+                            <div><span class="metric-value neon-text-blue" id="angle-z">0.0</span><span class="metric-unit">度</span></div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">加速度</div>
+                            <div><span class="metric-value neon-text-purple" id="acc-mag">0.0</span><span class="metric-unit">g</span></div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">角速度</div>
+                            <div><span class="metric-value neon-text-amber" id="gyro-mag">0.0</span><span class="metric-unit">deg/s</span></div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">轨迹速度</div>
+                            <div><span class="metric-value neon-text-cyan" id="track-speed">0.00</span><span class="metric-unit">m/s</span></div>
+                        </div>
+                    </div>
+
+                    <div class="mini-stat-grid hardware-mini-grid">
+                        <div class="mini-stat">
+                            <span>轨迹状态</span>
+                            <strong id="track-status">--</strong>
+                        </div>
+                        <div class="mini-stat">
+                            <span>运动置信度</span>
+                            <strong id="motion-confidence">--</strong>
+                        </div>
+                        <div class="mini-stat">
+                            <span>高度估计</span>
+                            <strong id="estimated-altitude">--</strong>
+                        </div>
+                        <div class="mini-stat">
+                            <span>姿态来源</span>
+                            <strong id="earth-source">--</strong>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="glass-card compact">
+                    <div class="card-header row-header">
+                        <h3>设备健康</h3>
+                        <span class="badge badge-purple" id="device-address">--</span>
+                    </div>
+                    <div class="mini-stat-grid hardware-mini-grid">
+                        <div class="mini-stat">
+                            <span>电量</span>
+                            <strong id="battery-percent">--</strong>
+                        </div>
+                        <div class="mini-stat">
+                            <span>电压</span>
+                            <strong id="battery-voltage">--</strong>
+                        </div>
+                        <div class="mini-stat">
+                            <span>信号</span>
+                            <strong id="rssi">--</strong>
+                        </div>
+                        <div class="mini-stat">
+                            <span>温度</span>
+                            <strong id="temperature">--</strong>
+                        </div>
+                    </div>
+
+                    <div class="hardware-vector-grid">
+                        <div class="sensor-item">
+                            <div class="sensor-label">Acc X/Y/Z</div>
+                            <div class="sensor-angle" id="acc-vector">--</div>
+                        </div>
+                        <div class="sensor-item">
+                            <div class="sensor-label">Gyro X/Y/Z</div>
+                            <div class="sensor-angle" id="gyro-vector">--</div>
+                        </div>
+                        <div class="sensor-item">
+                            <div class="sensor-label">Track X/Y/Z</div>
+                            <div class="sensor-angle" id="track-vector">--</div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="panel-grid panel-grid-two hardware-split">
+                <section class="glass-card compact chart-card">
+                    <div class="card-header row-header">
+                        <h3>三维轨迹投影</h3>
+                        <button type="button" class="tool-btn" id="clear-history">清空轨迹</button>
+                    </div>
+                    <div class="hardware-canvas-wrap">
+                        <canvas id="track-canvas" width="720" height="360"></canvas>
+                    </div>
+                </section>
+
+                <section class="glass-card compact chart-card">
+                    <div class="card-header row-header">
+                        <h3>加速度趋势</h3>
+                        <span class="badge badge-cyan" id="history-count">0 点</span>
+                    </div>
+                    <div class="hardware-canvas-wrap">
+                        <canvas id="spark-canvas" width="720" height="360"></canvas>
+                    </div>
+                </section>
+            </div>
+
+            <section class="glass-card compact hardware-command-card">
+                <div class="card-header row-header">
+                    <h3>接收端启动</h3>
+                    <div class="hardware-actions">
+                        <button type="button" class="tool-btn active command-mode" data-command="bridge">统一桥接器</button>
+                        <button type="button" class="tool-btn command-mode" data-command="dashboard">独立看板</button>
+                        <button type="button" class="tool-btn command-mode" data-command="simulate">模拟设备</button>
+                        <button type="button" class="tool-btn" id="copy-command">复制命令</button>
+                    </div>
+                </div>
+                <pre class="hardware-command"><code id="sample-code">cd integrations\ngimu-wifi
+python run_ngimu_web_bridge.py --protocol UDP --device-port 1399 --gui-port 8000 --api-port 18000 --open-browser</code></pre>
+            </section>
+
+            <div class="panel-grid panel-grid-two hardware-split">
+                <section class="glass-card compact strip-card">
+                    <div class="card-header row-header">
+                        <h3>接入日志</h3>
+                        <span class="badge badge-emerald">最新</span>
+                    </div>
+                    <div class="status-log hardware-status-log" id="hardware-status-log"></div>
+                </section>
+
+                <section class="glass-card compact strip-card">
+                    <div class="card-header row-header">
+                        <h3>最新原始数据</h3>
+                        <span class="badge badge-purple">JSON</span>
+                    </div>
+                    <pre class="hardware-raw"><code id="raw-data">{}</code></pre>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script src="../shared/site-shell.js?v=20260429-ngimu"></script>
+    <script src="./static/js/ngimu-bridge.js?v=20260429"></script>
+</body>
+</html>

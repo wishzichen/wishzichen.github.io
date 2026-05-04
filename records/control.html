@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智守银龄 - 开放世界控制</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", sans-serif;
+            background: linear-gradient(135deg, #0a1428, #1a2744);
+            color: #e2e8f0;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .canvas-area {
+            flex: 1;
+            position: relative;
+            background: #0f1729;
+        }
+
+        #canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .control-panel {
+            width: 350px;
+            background: rgba(10, 20, 41, 0.95);
+            padding: 20px;
+            overflow-y: auto;
+            border-left: 1px solid rgba(148, 163, 184, 0.3);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #22d3ee, #10b981);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .section {
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .direction-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 70px);
+            grid-template-rows: repeat(3, 70px);
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .dir-btn {
+            border: 2px solid rgba(34, 211, 238, 0.3);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #22d3ee;
+            font-size: 1.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: bold;
+        }
+
+        .dir-btn:hover {
+            background: rgba(34, 211, 238, 0.2);
+            border-color: #22d3ee;
+            transform: scale(1.05);
+        }
+
+        .dir-btn:active {
+            transform: scale(0.95);
+        }
+
+        .dir-up { grid-column: 2; grid-row: 1; }
+        .dir-left { grid-column: 1; grid-row: 2; }
+        .dir-stop { grid-column: 2; grid-row: 2; background: rgba(251, 113, 133, 0.15); border-color: rgba(251, 113, 133, 0.3); color: #fb7185; font-size: 1.2rem; }
+        .dir-right { grid-column: 3; grid-row: 2; }
+        .dir-down { grid-column: 2; grid-row: 3; }
+
+        .mode-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .mode-btn {
+            padding: 12px;
+            border: 2px solid rgba(148, 163, 184, 0.3);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #e2e8f0;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .mode-btn:hover {
+            background: rgba(34, 211, 238, 0.2);
+            border-color: #22d3ee;
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(135deg, #22d3ee, #10b981);
+            border-color: transparent;
+            color: white;
+        }
+
+        .slider-group {
+            margin: 15px 0;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .slider-value {
+            color: #22d3ee;
+            font-weight: 700;
+            font-family: monospace;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(148, 163, 184, 0.2);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #22d3ee, #3b82f6);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(34, 211, 238, 0.5);
+        }
+
+        .status-display {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 0.9rem;
+        }
+
+        .status-value {
+            color: #22d3ee;
+            font-weight: 700;
+            font-family: monospace;
+        }
+
+        .reset-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #f59e0b, #ef4444);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .reset-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);
+        }
+
+        .info-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(10, 20, 41, 0.9);
+            padding: 15px 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+        }
+
+        .info-item {
+            margin: 5px 0;
+            font-size: 0.9rem;
+        }
+
+        .info-label {
+            color: #94a3b8;
+        }
+
+        .info-value {
+            color: #22d3ee;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        .keyboard-hint {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            text-align: center;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="canvas-area">
+            <canvas id="canvas"></canvas>
+            <div class="info-overlay">
+                <div class="info-item">
+                    <span class="info-label">位置:</span>
+                    <span class="info-value" id="position">X: 0, Z: 0</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">方向:</span>
+                    <span class="info-value" id="rotation">0°</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">状态:</span>
+                    <span class="info-value" id="status">空闲</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <h1>🎮 开放世界控制</h1>
+
+            <div class="section">
+                <div class="section-title">方向控制</div>
+                <div class="direction-pad">
+                    <button class="dir-btn dir-up" id="btn-forward">↑</button>
+                    <button class="dir-btn dir-left" id="btn-left">←</button>
+                    <button class="dir-btn dir-stop" id="btn-stop">停</button>
+                    <button class="dir-btn dir-right" id="btn-right">→</button>
+                    <button class="dir-btn dir-down" id="btn-backward">↓</button>
+                </div>
+                <div class="keyboard-hint">
+                    键盘: W前进 S后退 A左转 D右转 空格停止
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">运动模式</div>
+                <div class="mode-buttons">
+                    <button class="mode-btn active" id="mode-walk">步行</button>
+                    <button class="mode-btn" id="mode-run">跑步</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="slider-group">
+                    <div class="slider-label">
+                        <span>速度</span>
+                        <span class="slider-value" id="speed-value">1.2 m/s</span>
+                    </div>
+                    <input type="range" id="speed-slider" min="0.5" max="5.0" step="0.1" value="1.2">
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">状态信息</div>
+                <div class="status-display">
+                    <div class="status-item">
+                        <span>模式</span>
+                        <span class="status-value" id="mode-display">步行</span>
+                    </div>
+                    <div class="status-item">
+                        <span>速度</span>
+                        <span class="status-value" id="speed-display">1.2 m/s</span>
+                    </div>
+                    <div class="status-item">
+                        <span>方向</span>
+                        <span class="status-value" id="direction-display">0°</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <button class="reset-btn" id="reset-btn">重置位置</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../shared/site-shell.js"></script>
+    <script src="./static/js/mock-api.js"></script>
+    <script src="./static/js/control.js"></script>
+</body>
+</html>

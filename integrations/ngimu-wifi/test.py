@@ -1,0 +1,6 @@
+# coding: UTF-8
+from run_dashboard import main
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
