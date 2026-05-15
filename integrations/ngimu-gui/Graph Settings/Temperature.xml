@@ -1,0 +1,4 @@
+<GraphSettings Title="Temperature" YAxisLabel="Temperature (°C)" GraphType="Timestamp" RollMode="False" ShowLegend="True" AxesRange="-60,35.3809974640608,0,35.4889976531267" HorizontalAutoscaleIndex="-1" VerticalAutoscaleIndex="2147483647">
+  <Trace Name="Gyroscope And Accelerometer" Color="#FF1818FF" BlockSize="256" MaxDataPoints="24000" />
+  <Trace Name="Environmental Sensor" Color="#FF00FFFF" BlockSize="256" MaxDataPoints="24000" />
+</GraphSettings>

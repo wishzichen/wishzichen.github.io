@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="night">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -40,6 +40,7 @@
           <h1 id="pageTitle">多设备姿态与步态诊断台</h1>
         </div>
         <div class="toolbar">
+          <button id="themeToggle" class="tool-button theme-toggle" type="button" aria-pressed="false">白天模式</button>
           <button id="reset3dView" class="tool-button" type="button">重置 3D</button>
           <button id="resetSpaceView" class="tool-button" type="button">重置空间</button>
           <button id="refreshToggle" class="tool-button" type="button">暂停刷新</button>
@@ -95,7 +96,7 @@
           <header>
             <div>
               <h2>实时位移轨迹</h2>
-              <span id="spaceModeText">持续记录 TrackX / TrackY / TrackZ</span>
+              <span id="spaceModeText">Gait Tracking ZUPT / TrackX / TrackY / TrackZ</span>
             </div>
             <strong id="spaceSummary">--</strong>
           </header>

@@ -104,15 +104,23 @@
 - 显示姿态角、加速度、角速度、轨迹速度、运动状态、轨迹修正状态、运动置信度。
 - 展示电量、电压、RSSI、温度、Acc/Gyro/Track 向量。
 - 使用 Canvas 绘制 TrackX/TrackZ 三维轨迹投影与 AccMagnitude 加速度趋势。
+- 支持 AI 实时交互卡片，将 NGIMU/桥接数据转成低风险、需关注、高风险三类现场解释。
 - 支持打开原本地看板、刷新设备、清空当前设备历史轨迹和复制启动命令。
 
 ---
 
 ## NGIMU/WiFi 硬件接入
 
-本次已将 `E:\TJUTCM\Activities\中国大学生计算机设计大赛\NGIMU-Software-Public-master\NGIMU-Software-Public-master` 中最适合当前应用的轻量部分整合到本仓库：
+本次已将 `E:\TJUTCM\Activities\中国大学生计算机设计大赛\NGIMU-Software-Public-master\NGIMU-Software-Public-master` 中最适合当前应用的运行工具链整合到本仓库：
 
 ```text
+integrations/ngimu-gui/
+├── NGIMU GUI.exe                # 已编译的 C# NGIMU GUI 运行文件
+├── *.dll                        # 运行依赖
+├── 3DView/                      # NGIMU 外壳模型和 3D 视图资源
+├── Graph Settings/              # 曲线配置
+└── Shaders/                     # OpenGL 渲染着色器
+
 integrations/ngimu-wifi/
 ├── run_dashboard.py             # 独立 WiFi IMU 接收端 + Web/API 看板
 ├── run_ngimu_web_bridge.py      # NGIMU GUI + Web/API 统一桥接器
@@ -121,33 +129,82 @@ integrations/ngimu-wifi/
 ├── simulate_device.py           # 无硬件模拟器
 ├── bs_to_ngimu_gui_bridge.py    # BS 帧到 NGIMU OSC 消息桥接
 ├── ngimu_osc.py                 # NGIMU OSC 消息编码
+├── diagnose_bridge.py           # 端口/进程/IPv4 诊断脚本
 ├── udp_service.py / tcp_service.py
 └── web/                         # 原本地设备看板
 ```
 
 ### 设计取舍
 
-- **已整合**：轻量 Python SDK、设备模拟器、本地 HTTP API、Web 看板、NGIMU GUI 桥接思路、Gait-Tracking 风格 ZUPT 轨迹字段、IMU-Mocap 风格下肢模板思路。
-- **未直接整合**：完整 C# WinForms `NGIMU.sln`、旧版 GUI 编译产物和大体量示例工程。它们适合独立开发/调试，不适合直接放进静态参赛前端。
-- **当前定位**：主应用负责比赛展示和综合工作流；`integrations/ngimu-wifi` 负责本地设备接入；`records/ngimu.html` 负责把本地设备数据纳入当前应用。
+- **已整合**：NGIMU GUI 可运行文件、轻量 Python SDK、设备模拟器、本地 HTTP API、Web 看板、BS55 -> NGIMU OSC 桥接、Gait-Tracking 风格 ZUPT 轨迹字段、IMU-Mocap 风格下肢模板思路。
+- **未直接提交 BS-IMU 配置软件本体**：`bs-imu.exe` 单文件约 186MB，超过 GitHub 普通仓库推荐体量和单文件限制；仓库提供 `打开BS_IMU配置软件.bat` 作为本地入口，并在文档中说明配置流程。
+- **当前定位**：主应用负责比赛展示和综合工作流；`integrations/ngimu-gui` 负责展示原 NGIMU GUI；`integrations/ngimu-wifi` 负责本地设备接入；`records/ngimu.html` 负责把本地设备数据纳入当前应用。
 
-### 启动统一桥接器
+### 端口原则
 
-适合同时使用 NGIMU GUI 与当前应用硬件接入页：
+BS-WF91 设备默认通过 UDP 发送数据。Python 桥接器直接监听 `1399` 端口接收设备帧：
+
+```text
+BS-WF91 设备 -> UDP 本机IPv4:1399 -> Python 桥接器 -> UDP 127.0.0.1:8000 -> NGIMU GUI
+                                             └-> HTTP 127.0.0.1:18000 -> records/ngimu.html
+```
+
+> 注意：如果 BS-IMU 配置软件正在运行，它会占用 `1399` 端口，导致桥接器无法接收数据。请先关闭 BS-IMU 配置软件，再启动桥接器。
+
+### 一键本地联调
+
+推荐比赛现场直接双击：
+
+```text
+本地一键启动.bat
+```
+
+如果中文文件名在个别 Windows 环境中不稳定，也可以双击英文备用入口：
+
+```text
+start-local-lab.bat
+```
+
+该启动器会自动完成以下工作：
+
+- 自动寻找 `python` 或 `py -3`，无需手动改脚本。
+- 自动检测当前电脑可用于 BS-WF91 转发的 IPv4 地址，不再写死 `172.17.8.101`。
+- 输出并复制设备侧推荐配置：`UDP`、`Server IP`、`Server Port=1399`。
+- 检查 `1399`、`8000`、`18000` 等关键端口占用情况。
+- 启动 NGIMU GUI、本地静态网页和 Python 桥接器。
+- 自动打开当前应用的硬件接入页：`records/ngimu.html`。
+
+BS-IMU 配置软件只作为调试/配置工具，不在默认比赛启动链路中自动打开。只有在需要修改传感器转发目标时，才双击 `打开BS_IMU配置软件.bat`，把设备数据转发目标设置为启动器打印的本机 IPv4，协议 `UDP`，端口 `1399`。这里的 IP 会根据当前网络自动选择；如果现场 WiFi、热点或网线变化，请重新运行 `本地一键启动.bat`。
+
+NGIMU GUI 是默认演示端。启动后在 NGIMU GUI 中使用 UDP 接收端口 `8000`；Python 桥接器会把 BS-WF91 原始帧转换为 NGIMU OSC 数据，同时把同一份数据暴露给当前应用的 AI 实时交互面板。
+
+如果电脑有多块网卡且自动选择不符合现场网络，可以手动指定一次：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\start-local-lab.ps1 -Mode Full -DeviceIP 你的本机IPv4
+```
+
+### 手动启动统一桥接器
+
+适合只想在终端里观察桥接日志，或需要自定义端口时使用：
 
 ```powershell
 cd integrations\ngimu-wifi
-python run_ngimu_web_bridge.py --protocol UDP --device-port 1399 --gui-port 8000 --api-port 18000 --open-browser
+python run_ngimu_web_bridge.py --protocol UDP --device-port 1399 --gui-port 8000 --api-port 18000
 ```
 
 然后打开：
 
 ```text
-records/ngimu.html
+http://127.0.0.1:8080/records/ngimu.html
 API 地址：http://127.0.0.1:18000/api
 ```
 
-设备侧配置为向当前电脑 IPv4 发送数据，协议 `UDP`，端口 `1399`。
+设备侧配置为向当前电脑 IPv4 发送数据，协议 `UDP`，端口 `1399`。单独启动桥接器也可以双击：
+
+```text
+启动硬件桥接.bat
+```
 
 ### 单独启动 WiFi 看板
 
@@ -155,7 +212,7 @@ API 地址：http://127.0.0.1:18000/api
 
 ```powershell
 cd integrations\ngimu-wifi
-python run_dashboard.py --protocol UDP --device-port 1399 --api-port 8000 --open-browser
+python run_dashboard.py --protocol UDP --device-port 1399 --api-port 18000 --open-browser
 ```
 
 此时当前应用硬件接入页使用：
@@ -234,7 +291,7 @@ integrations/ngimu-wifi
     │
     ├─ BS 帧解析
     ├─ 姿态/加速度/轨迹衍生字段
-    ├─ 可选 OSC 转发到 NGIMU GUI
+    ├─ OSC 转发到 integrations/ngimu-gui / NGIMU GUI
     └─ HTTP API:8000/18000
           │
           ├─ records/ngimu.html       # 当前应用硬件接入页
@@ -279,11 +336,22 @@ integrations/ngimu-wifi
 │           ├── mock-api-static.js
 │           └── skeleton-overlay.js
 ├── integrations/
+│   ├── bs-imu-config/                 # BS-IMU 配置软件本地路径与调试说明
+│   ├── ngimu-gui/                     # 已整合的 NGIMU GUI 运行文件
 │   └── ngimu-wifi/                    # 已整合的轻量硬件接入 SDK
+├── docs/
+│   └── ARCHITECTURE.md                # 系统架构、数据链路和比赛演示流程
+├── tools/
+│   └── start-local-lab.ps1            # 本地联调统一启动器
 ├── shared/
 │   └── site-shell.js                  # 全局浮动导航
 ├── image/README/                      # README 图片资源
 ├── .github/workflows/deploy.yml       # GitHub Pages 自动部署
+├── 本地一键启动.bat
+├── start-local-lab.bat
+├── 启动NGIMU_GUI.bat
+├── 打开BS_IMU配置软件.bat
+├── 启动硬件桥接.bat
 ├── 启动预览.bat
 └── README.md
 ```
@@ -329,13 +397,23 @@ http://127.0.0.1:8080/
 
 ### 硬件联调建议
 
-比赛现场建议开三个窗口：
+比赛现场优先使用一键启动：
+
+```text
+本地一键启动.bat
+```
+
+它会自动检测本机 IPv4，并默认打开网页、NGIMU GUI 和桥接器；BS-IMU 配置软件只在需要修改传感器转发目标时手动打开。若需要拆开调试，再按下面方式分别启动：
 
 | 窗口 | 命令/页面 | 作用 |
 |---|---|---|
 | 静态应用 | `python -m http.server 8080` | 打开当前参赛应用 |
-| 硬件接收端 | `python run_ngimu_web_bridge.py ...` | 接收设备数据并提供 API |
+| BS 配置软件 | `打开BS_IMU配置软件.bat` | 连接 BS-WF91，设置 UDP 服务器 IP 和端口 |
+| NGIMU GUI | `启动NGIMU_GUI.bat` | 单独打开已整合的 NGIMU GUI |
+| 硬件接收端 | `启动硬件桥接.bat` | 运行端口诊断和桥接器 |
 | 模拟器或设备 | `python simulate_device.py ...` 或真实设备 | 产生 IMU 数据流 |
+
+更完整的模块边界、端口关系和比赛演示链路见 [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)。
 
 ---
 
@@ -381,6 +459,12 @@ python -m http.server 8080
 
 ```powershell
 cd integrations\ngimu-wifi
+python diagnose_bridge.py --device-port 1399 --gui-port 8000 --api-port 18000
+```
+
+启动接收端：
+
+```powershell
 python run_dashboard.py --open-browser
 ```
 
@@ -399,7 +483,7 @@ http://127.0.0.1:8080/records/ngimu.html
 预期结果：
 
 - 设备数量大于 0。
-- 设备列表出现 `BSDEMO...` 或 `BSLEG...`。
+- 设备列表出现 `BS55...` 或 `BS55LEG...`。
 - 姿态、加速度、电池、RSSI、轨迹趋势持续刷新。
 - 轨迹投影和加速度趋势 Canvas 不为空。
 

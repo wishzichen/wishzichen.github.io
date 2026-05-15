@@ -16,13 +16,14 @@ const LIVE_POLL_MS = 120;
 const DEVICE_LIST_POLL_MS = 900;
 const HISTORY_POLL_MS = 320;
 const SLOW_RENDER_MS = 520;
+const THEME_STORAGE_KEY = "bs-imu-dashboard-theme";
 const HISTORY_LIMIT = 60000;
 const RENDER_POINT_LIMIT = 2600;
 const TRACK_MIN_SPAN_M = 0.5;
 const SPACE_MIN_SPAN_M = 0.001;
 const SPACE_TARGET_SPAN = 4.2;
 const TRACK_REVEAL_POINTS_PER_SECOND = 120;
-const SIMULATION_PREFIXES = ["BSLEG"];
+const SIMULATION_PREFIXES = ["BSLEG", "BS55LEG"];
 const MOCAP_ROLE_LABELS = {
   pelvis: "骨盆",
   left_thigh: "左大腿",
@@ -175,6 +176,7 @@ const dom = {
   resetSpaceView: document.getElementById("resetSpaceView"),
   resetMocapView: document.getElementById("resetMocapView"),
   refreshToggle: document.getElementById("refreshToggle"),
+  themeToggle: document.getElementById("themeToggle"),
   clearHistory: document.getElementById("clearHistory"),
   resetTrack: document.getElementById("resetTrack"),
   attitudeMount: document.getElementById("attitudeMount"),
@@ -201,6 +203,76 @@ const dom = {
   mocapSourceText: document.getElementById("mocapSourceText"),
   mocapModeButtons: Array.from(document.querySelectorAll("[data-mocap-mode]")),
 };
+
+function cssVariable(name, fallback) {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
+}
+
+function syncChartColors() {
+  charts.forEach((chart) => {
+    chart.series.forEach((series) => {
+      if (["AccX", "LinearAccX", "EarthAccX", "AsX", "AngleX", "GX"].includes(series.key)) {
+        series.color = COLORS.blue;
+      } else if (["AccY", "LinearAccY", "EarthAccY", "AsY", "AngleY", "GY", "ElectricPercentage"].includes(series.key)) {
+        series.color = COLORS.green;
+      } else if (["AccZ", "LinearAccZ", "EarthAccZ", "AsZ", "AngleZ", "GZ", "Rssi"].includes(series.key)) {
+        series.color = COLORS.amber;
+      } else if (["AccMagnitude", "GyroMagnitude", "MagMagnitude"].includes(series.key)) {
+        series.color = COLORS.red;
+      } else if (series.key === "EstimatedAltitude") {
+        series.color = COLORS.violet;
+      } else if (series.key === "TrackSpeed") {
+        series.color = COLORS.cyan;
+      }
+    });
+  });
+}
+
+function syncPaletteFromCss() {
+  COLORS.blue = cssVariable("--blue", COLORS.blue);
+  COLORS.green = cssVariable("--green", COLORS.green);
+  COLORS.amber = cssVariable("--amber", COLORS.amber);
+  COLORS.red = cssVariable("--red", COLORS.red);
+  COLORS.cyan = cssVariable("--cyan", COLORS.cyan);
+  COLORS.violet = cssVariable("--violet", COLORS.violet);
+  COLORS.grid = cssVariable("--line", COLORS.grid);
+  COLORS.axis = cssVariable("--muted", COLORS.axis);
+  COLORS.ink = cssVariable("--ink", COLORS.ink);
+  syncChartColors();
+}
+
+function storedTheme() {
+  try {
+    return localStorage.getItem(THEME_STORAGE_KEY) === "day" ? "day" : "night";
+  } catch (error) {
+    return "night";
+  }
+}
+
+function applyTheme(theme, options = {}) {
+  const nextTheme = theme === "day" ? "day" : "night";
+  document.documentElement.dataset.theme = nextTheme;
+  syncPaletteFromCss();
+
+  if (dom.themeToggle) {
+    const isDay = nextTheme === "day";
+    dom.themeToggle.textContent = isDay ? "夜间模式" : "白天模式";
+    dom.themeToggle.setAttribute("aria-pressed", String(isDay));
+  }
+
+  if (options.persist) {
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+    } catch (error) {
+      // Ignore private-mode storage failures; the default night theme still applies.
+    }
+  }
+
+  if (options.render) {
+    renderAll();
+  }
+}
 
 function toNumber(value) {
   const number = Number(value);
@@ -859,7 +931,7 @@ function drawChart(chart) {
     ctx.fillText(formatValue(tick), padding.left - 10, y);
   });
 
-  ctx.strokeStyle = "#9aa4b5";
+  ctx.strokeStyle = COLORS.axis;
   ctx.beginPath();
   ctx.moveTo(padding.left, padding.top);
   ctx.lineTo(padding.left, padding.top + plotH);
@@ -937,6 +1009,22 @@ function rotationMatrixFromQuaternion(quaternion) {
     2 * (qwqw - 0.5 + x * x), 2 * (qxqy + qwqz), 2 * (qxqz - qwqy),
     2 * (qxqy - qwqz), 2 * (qwqw - 0.5 + y * y), 2 * (qyqz + qwqx),
     2 * (qxqz + qwqy), 2 * (qyqz - qwqx), 2 * (qwqw - 0.5 + z * z),
+  ];
+}
+
+function ngimuAttitudeMatrix(w, x, y, z) {
+  const s = Math.SQRT1_2;
+  const cw = s * (w - x);
+  const cx = s * (w + x);
+  const cy = cx;
+  const cz = s * (y - z);
+  const cw2 = cw * cw, cx2 = cx * cx, cy2 = cy * cy, cz2 = cz * cz;
+  const cxcy = cx * cy, cxcz = cx * cz, cycz = cy * cz;
+  const cwcx = cw * cx, cwcy = cw * cy, cwcz = cw * cz;
+  return [
+    2 * (cy2 + cz2 - 0.5), 2 * (cxcy + cwcz), 2 * (cxcz - cwcy),
+    2 * (cxcy - cwcz), 2 * (cx2 + cz2 - 0.5), 2 * (cycz + cwcx),
+    2 * (cxcz + cwcy), 2 * (cycz - cwcx), 2 * (cx2 + cy2 - 0.5),
   ];
 }
 
@@ -1093,11 +1181,11 @@ function renderAttitudeCanvas(data) {
     return;
   }
 
-  const q = getQuaternion(data);
-  const m = rotationMatrixFromQuaternion(q);
+  const [qw, qx, qy, qz] = getQuaternion(data);
+  const m = ngimuAttitudeMatrix(qw, qx, qy, qz);
   const vertices = [
-    [-1.55, -0.9, -0.16], [1.55, -0.9, -0.16], [1.55, 0.9, -0.16], [-1.55, 0.9, -0.16],
-    [-1.55, -0.9, 0.16], [1.55, -0.9, 0.16], [1.55, 0.9, 0.16], [-1.55, 0.9, 0.16],
+    [-1.7, -1.0, -0.48], [1.7, -1.0, -0.48], [1.7, 1.0, -0.48], [-1.7, 1.0, -0.48],
+    [-1.7, -1.0, 0.48], [1.7, -1.0, 0.48], [1.7, 1.0, 0.48], [-1.7, 1.0, 0.48],
   ];
   const faces = [
     [0, 1, 2, 3, "#26374a"], [4, 5, 6, 7, "#1f7d5c"], [0, 1, 5, 4, "#94a3b8"],
@@ -1144,11 +1232,11 @@ function renderAttitudeCanvas(data) {
     });
 
   const surfaceParts = [
-    { p: [-0.9, -0.42, 0.19], w: 0.48, h: 0.34, color: "#111827" },
-    { p: [0.12, -0.45, 0.19], w: 0.62, h: 0.42, color: "#334155" },
-    { p: [0.92, -0.18, 0.2], w: 0.42, h: 0.22, color: "#cbd5e1" },
-    { p: [-1.15, 0.48, 0.2], w: 0.2, h: 0.2, color: "#22c55e" },
-    { p: [-0.78, 0.48, 0.2], w: 0.2, h: 0.2, color: "#ef4444" },
+    { p: [-0.9, -0.42, 0.52], w: 0.48, h: 0.34, color: "#111827" },
+    { p: [0.12, -0.45, 0.52], w: 0.62, h: 0.42, color: "#334155" },
+    { p: [0.92, -0.18, 0.52], w: 0.42, h: 0.22, color: "#cbd5e1" },
+    { p: [-1.15, 0.48, 0.52], w: 0.2, h: 0.2, color: "#22c55e" },
+    { p: [-0.78, 0.48, 0.52], w: 0.2, h: 0.2, color: "#ef4444" },
   ];
 
   surfaceParts.forEach((part) => {
@@ -1205,7 +1293,7 @@ const attitude3d = {
 
     this.enabled = true;
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xf7f9fc);
+    this.scene.background = new THREE.Color(cssVariable("--panel", "#111827"));
     this.camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -1226,51 +1314,70 @@ const attitude3d = {
     this.grid = new THREE.GridHelper(5.5, 11, 0xb8c2d2, 0xd8dee8);
     this.grid.position.y = -1.25;
     this.scene.add(this.grid);
+    this.applyTheme();
     this.bindPointerControls();
     this.updateCamera();
     dom.attitudeMode.textContent = "正在加载 NGIMU 模型";
     this.loadRealModel();
   },
 
+  applyTheme() {
+    if (!this.scene || !window.THREE) {
+      return;
+    }
+    this.scene.background = new THREE.Color(cssVariable("--panel", "#111827"));
+    if (this.grid) {
+      const materials = Array.isArray(this.grid.material) ? this.grid.material : [this.grid.material];
+      if (materials[0]) {
+        materials[0].color.set(COLORS.axis);
+        materials[0].needsUpdate = true;
+      }
+      if (materials[1]) {
+        materials[1].color.set(COLORS.grid);
+        materials[1].needsUpdate = true;
+      }
+    }
+  },
+
   createFallbackModel() {
     this.model.clear();
 
     const board = new THREE.Mesh(
-      new THREE.BoxGeometry(3.2, 1.75, 0.16),
+      new THREE.BoxGeometry(3.4, 2.0, 0.96),
       new THREE.MeshStandardMaterial({ color: 0x1f7d5c, roughness: 0.58, metalness: 0.08 })
     );
     board.position.z = 0;
 
     const caseTop = new THREE.Mesh(
-      new THREE.BoxGeometry(3.35, 1.9, 0.18),
+      new THREE.BoxGeometry(3.5, 2.1, 0.22),
       new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.48, metalness: 0.12, transparent: true, opacity: 0.78 })
     );
-    caseTop.position.z = 0.23;
+    caseTop.position.z = 0.59;
 
     const chip = new THREE.Mesh(
       new THREE.BoxGeometry(0.66, 0.54, 0.16),
       new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.45 })
     );
-    chip.position.set(-0.55, -0.18, 0.25);
+    chip.position.set(-0.55, -0.18, 0.65);
 
     const sensor = new THREE.Mesh(
       new THREE.BoxGeometry(0.48, 0.4, 0.13),
       new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.42 })
     );
-    sensor.position.set(0.32, -0.26, 0.25);
+    sensor.position.set(0.32, -0.26, 0.65);
 
     const connector = new THREE.Mesh(
       new THREE.BoxGeometry(0.58, 0.36, 0.2),
       new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.28, metalness: 0.45 })
     );
-    connector.position.set(1.35, 0, 0.25);
+    connector.position.set(1.35, 0, 0.65);
 
     const ledGreen = new THREE.Mesh(
       new THREE.CylinderGeometry(0.08, 0.08, 0.05, 18),
       new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x0a5a25, roughness: 0.2 })
     );
     ledGreen.rotation.x = Math.PI / 2;
-    ledGreen.position.set(-1.25, 0.58, 0.27);
+    ledGreen.position.set(-1.25, 0.58, 0.67);
 
     const ledRed = ledGreen.clone();
     ledRed.material = new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0x641111, roughness: 0.2 });
@@ -1316,7 +1423,6 @@ const attitude3d = {
         metalness: 0.18,
       });
       const mesh = new THREE.Mesh(geometry, material);
-      mesh.rotation.x = -Math.PI / 2;
 
       this.realModel = mesh;
       this.model.clear();
@@ -1403,9 +1509,12 @@ const attitude3d = {
       return;
     }
     this.resize();
+    this.applyTheme();
     if (data) {
       const [w, x, y, z] = getQuaternion(data);
-      this.model.quaternion.set(x, y, z, w).normalize();
+      const inv = new THREE.Quaternion(-x, -y, -z, w).normalize();
+      const rotX = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+      this.model.quaternion.copy(rotX).multiply(inv);
     }
     this.renderer.render(this.scene, this.camera);
   },
@@ -1704,6 +1813,7 @@ const space3d = {
   scene: null,
   camera: null,
   content: null,
+  grid: null,
   pointer: null,
   viewYaw: 0.4,
   viewPitch: 0.45,
@@ -1720,7 +1830,7 @@ const space3d = {
 
     this.enabled = true;
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xf8fafc);
+    this.scene.background = new THREE.Color(cssVariable("--panel", "#111827"));
     this.camera = new THREE.PerspectiveCamera(42, 1, 0.1, 120);
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setPixelRatio(window.devicePixelRatio || 1);
@@ -1735,8 +1845,16 @@ const space3d = {
     light.position.set(4, 7, 6);
     this.scene.add(light);
 
+    this.applyTheme();
     this.bindPointerControls();
     this.updateCamera();
+  },
+
+  applyTheme() {
+    if (!this.scene || !window.THREE) {
+      return;
+    }
+    this.scene.background = new THREE.Color(cssVariable("--panel", "#111827"));
   },
 
   bindPointerControls() {
@@ -2039,7 +2157,7 @@ const space3d = {
     const smoothPoints = this.smoothPathPoints(pathPoints);
     const geometry = new THREE.BufferGeometry().setFromPoints(smoothPoints);
     const base = new THREE.Color(color);
-    const start = new THREE.Color(0xb8c2d2);
+    const start = new THREE.Color(COLORS.grid);
     const colors = [];
     smoothPoints.forEach((point, index) => {
       const ratio = smoothPoints.length <= 1 ? 1 : index / (smoothPoints.length - 1);
@@ -2099,6 +2217,7 @@ const space3d = {
     }
 
     this.resize();
+    this.applyTheme();
     disposeObject3D(this.content);
 
     if (!tracks.length) {
@@ -2216,7 +2335,7 @@ function renderSpaceCanvasFallback(tracks) {
 function renderSpace() {
   const tracks = buildSpaceTracks();
   const totalPoints = tracks.reduce((sum, track) => sum + track.points.length, 0);
-  dom.spaceModeText.textContent = "持续记录 TrackX / TrackY / TrackZ 位移轨迹";
+  dom.spaceModeText.textContent = "Gait Tracking ZUPT 实时位移轨迹";
   dom.spaceSummary.textContent = tracks.length ? `${tracks.length} 台 / ${totalPoints} 点` : "--";
 
   if (!tracks.length) {
@@ -2328,7 +2447,7 @@ const mocap3d = {
 
     this.enabled = true;
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xf8fafc);
+    this.scene.background = new THREE.Color(cssVariable("--panel", "#111827"));
     this.camera = new THREE.PerspectiveCamera(38, 1, 0.1, 80);
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setPixelRatio(window.devicePixelRatio || 1);
@@ -2345,11 +2464,30 @@ const mocap3d = {
     const fillLight = new THREE.DirectionalLight(0xbfd7ff, 0.35);
     fillLight.position.set(-4, 3, -3);
     this.scene.add(fillLight);
-    const grid = new THREE.GridHelper(4.6, 10, 0xa9b5c4, 0xdbe2ec);
-    grid.position.y = 0;
-    this.scene.add(grid);
+    this.grid = new THREE.GridHelper(4.6, 10, 0xa9b5c4, 0xdbe2ec);
+    this.grid.position.y = 0;
+    this.scene.add(this.grid);
+    this.applyTheme();
     this.bindPointerControls();
     this.updateCamera();
+  },
+
+  applyTheme() {
+    if (!this.scene || !window.THREE) {
+      return;
+    }
+    this.scene.background = new THREE.Color(cssVariable("--panel", "#111827"));
+    if (this.grid) {
+      const materials = Array.isArray(this.grid.material) ? this.grid.material : [this.grid.material];
+      if (materials[0]) {
+        materials[0].color.set(COLORS.axis);
+        materials[0].needsUpdate = true;
+      }
+      if (materials[1]) {
+        materials[1].color.set(COLORS.grid);
+        materials[1].needsUpdate = true;
+      }
+    }
   },
 
   bindPointerControls() {
@@ -2504,6 +2642,7 @@ const mocap3d = {
     }
 
     this.resize();
+    this.applyTheme();
     disposeObject3D(this.content);
     const assignmentMap = new Map(assignments.map((assignment) => [assignment.role, assignment]));
     const now = performance.now() / 1000;
@@ -2571,7 +2710,7 @@ function drawXyzTrackChart(ctx, width, height, points, valueRange = null) {
     return padding.left + (index / (points.length - 1)) * plotW;
   };
 
-  ctx.strokeStyle = "rgba(107, 114, 128, 0.22)";
+  ctx.strokeStyle = COLORS.grid;
   ctx.lineWidth = 1;
   ctx.fillStyle = COLORS.axis;
   ctx.font = "12px Microsoft YaHei, Segoe UI, Arial";
@@ -2587,7 +2726,7 @@ function drawXyzTrackChart(ctx, width, height, points, valueRange = null) {
   });
 
   const zeroY = yToPx(0);
-  ctx.strokeStyle = "rgba(27, 36, 48, 0.38)";
+  ctx.strokeStyle = COLORS.axis;
   ctx.beginPath();
   ctx.moveTo(padding.left, zeroY);
   ctx.lineTo(width - padding.right, zeroY);
@@ -2729,7 +2868,7 @@ function renderTrack() {
 
   const maxRange = Math.max(spanX, spanY);
   const gridStep = niceDistance(maxRange / 4);
-  ctx.strokeStyle = "rgba(107, 114, 128, 0.22)";
+  ctx.strokeStyle = COLORS.grid;
   ctx.lineWidth = 1;
   ctx.font = "12px Microsoft YaHei, Segoe UI, Arial";
   ctx.fillStyle = COLORS.axis;
@@ -2755,7 +2894,7 @@ function renderTrack() {
   }
 
   const zero = toCanvas({ x: 0, y: 0 });
-  ctx.strokeStyle = "rgba(107, 114, 128, 0.58)";
+  ctx.strokeStyle = COLORS.axis;
   ctx.beginPath();
   ctx.moveTo(padding, zero.y);
   ctx.lineTo(rect.width - padding, zero.y);
@@ -3021,6 +3160,14 @@ function bindActions() {
     }
   });
 
+  if (dom.themeToggle) {
+    dom.themeToggle.addEventListener("click", () => {
+      const currentTheme = document.documentElement.dataset.theme === "day" ? "day" : "night";
+      applyTheme(currentTheme === "day" ? "night" : "day", { persist: true, render: true });
+      initLegends();
+    });
+  }
+
   dom.clearHistory.addEventListener("click", clearSelectedHistory);
   dom.resetTrack.addEventListener("click", resetTrack);
   dom.mapModeButtons.forEach((button) => {
@@ -3054,6 +3201,7 @@ function bindActions() {
   });
 }
 
+applyTheme(storedTheme());
 initLegends();
 bindActions();
 setConnection("idle", "初始化");

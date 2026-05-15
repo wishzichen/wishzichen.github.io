@@ -1,4 +1,38 @@
 :root {
+  color-scheme: dark;
+  --bg: #0b1020;
+  --panel: #111827;
+  --panel-strong: #151f2f;
+  --ink: #f4f7fb;
+  --muted: #9aa7b8;
+  --line: #28364e;
+  --blue: #82a7ff;
+  --green: #5ad58b;
+  --amber: #f6c45b;
+  --red: #ff746b;
+  --cyan: #49d6e7;
+  --violet: #b58cff;
+  --sidebar: #0f1728;
+  --control: #172238;
+  --control-hover: #23314c;
+  --badge-bg: rgba(130, 167, 255, 0.16);
+  --card-border: rgba(96, 121, 160, 0.48);
+  --canvas-border: #2e3d56;
+  --legend: #c7d1df;
+  --empty-bg: rgba(21, 31, 47, 0.66);
+  --empty-line: #3a4a63;
+  --shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+  --mount-bg:
+    linear-gradient(180deg, rgba(18, 27, 43, 0.94), rgba(12, 18, 31, 0.98)),
+    repeating-linear-gradient(0deg, transparent, transparent 31px, rgba(73, 214, 231, 0.08) 32px),
+    repeating-linear-gradient(90deg, transparent, transparent 31px, rgba(130, 167, 255, 0.08) 32px);
+  --space-bg:
+    linear-gradient(180deg, rgba(17, 25, 41, 0.96), rgba(10, 15, 26, 0.98)),
+    repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(73, 214, 231, 0.09) 40px),
+    repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(90, 213, 139, 0.08) 40px);
+}
+
+:root[data-theme="day"] {
   color-scheme: light;
   --bg: #edf0f4;
   --panel: #fbfcfe;
@@ -12,7 +46,24 @@
   --red: #d84b43;
   --cyan: #1893a5;
   --violet: #7860bd;
+  --sidebar: #f7f8fb;
+  --control: #ffffff;
+  --control-hover: #eef3fb;
+  --badge-bg: #e5ecff;
+  --card-border: rgba(216, 222, 232, 0.85);
+  --canvas-border: #d7dde8;
+  --legend: #49515f;
+  --empty-bg: rgba(255, 255, 255, 0.48);
+  --empty-line: #c6cedb;
   --shadow: 0 18px 40px rgba(31, 41, 55, 0.12);
+  --mount-bg:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(232, 235, 240, 0.7)),
+    repeating-linear-gradient(0deg, transparent, transparent 31px, rgba(79, 109, 204, 0.08) 32px),
+    repeating-linear-gradient(90deg, transparent, transparent 31px, rgba(79, 109, 204, 0.08) 32px);
+  --space-bg:
+    linear-gradient(180deg, rgba(250, 252, 255, 0.88), rgba(236, 241, 247, 0.92)),
+    repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(32, 166, 184, 0.1) 40px),
+    repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(79, 109, 204, 0.08) 40px);
 }
 
 * {
@@ -49,7 +100,7 @@ select {
   flex-direction: column;
   gap: 18px;
   padding: 22px 20px;
-  background: #f7f8fb;
+  background: var(--sidebar);
   border-right: 1px solid var(--line);
 }
 
@@ -142,7 +193,7 @@ select {
   min-width: 28px;
   padding: 3px 8px;
   border-radius: 999px;
-  background: #e5ecff;
+  background: var(--badge-bg);
   color: var(--blue);
   text-align: center;
   font-size: 13px;
@@ -263,17 +314,22 @@ h1 {
   padding: 0 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--panel-strong);
+  background: var(--control);
   color: var(--ink);
   cursor: pointer;
 }
 
 .tool-button:hover {
-  border-color: #b7c2d4;
+  border-color: var(--blue);
+  background: var(--control-hover);
 }
 
 .tool-button.danger {
   color: var(--red);
+}
+
+.theme-toggle {
+  min-width: 92px;
 }
 
 .panel-controls {
@@ -283,7 +339,7 @@ h1 {
   margin: 0 0 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #eef2f7;
+  background: var(--control);
 }
 
 .segment {
@@ -293,7 +349,7 @@ h1 {
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: #566070;
+  color: var(--muted);
   cursor: pointer;
 }
 
@@ -332,7 +388,7 @@ h1 {
 .compare-card {
   min-width: 0;
   padding: 14px 16px;
-  border: 1px solid rgba(216, 222, 232, 0.85);
+  border: 1px solid var(--card-border);
   border-left: 5px solid var(--blue);
   border-radius: 8px;
   background: var(--panel-strong);
@@ -394,10 +450,10 @@ h1 {
 .visual-panel {
   min-width: 0;
   padding: 18px;
-  border: 1px solid rgba(216, 222, 232, 0.85);
+  border: 1px solid var(--card-border);
   border-radius: 8px;
   background: var(--panel);
-  box-shadow: 0 6px 18px rgba(31, 41, 55, 0.05);
+  box-shadow: var(--shadow);
 }
 
 .visual-panel header {
@@ -432,12 +488,9 @@ h1 {
   width: 100%;
   height: 390px;
   overflow: hidden;
-  border: 1px solid #d7dde8;
+  border: 1px solid var(--canvas-border);
   border-radius: 8px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(232, 235, 240, 0.7)),
-    repeating-linear-gradient(0deg, transparent, transparent 31px, rgba(79, 109, 204, 0.08) 32px),
-    repeating-linear-gradient(90deg, transparent, transparent 31px, rgba(79, 109, 204, 0.08) 32px);
+  background: var(--mount-bg);
 }
 
 .space-mount,
@@ -446,19 +499,13 @@ h1 {
   width: 100%;
   height: 390px;
   overflow: hidden;
-  border: 1px solid #d7dde8;
+  border: 1px solid var(--canvas-border);
   border-radius: 8px;
-  background:
-    linear-gradient(180deg, rgba(250, 252, 255, 0.88), rgba(236, 241, 247, 0.92)),
-    repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(32, 166, 184, 0.1) 40px),
-    repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(79, 109, 204, 0.08) 40px);
+  background: var(--space-bg);
 }
 
 .mocap-mount {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(238, 244, 242, 0.94)),
-    repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(79, 159, 109, 0.12) 40px),
-    repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(49, 95, 189, 0.08) 40px);
+  background: var(--space-bg);
 }
 
 #attitudeMount canvas,
@@ -486,12 +533,9 @@ h1 {
 
 #trackCanvas {
   height: 390px;
-  border: 1px solid #d7dde8;
+  border: 1px solid var(--canvas-border);
   border-radius: 8px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(245, 247, 251, 0.92)),
-    repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(115, 191, 98, 0.12) 40px),
-    repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(79, 109, 204, 0.1) 40px);
+  background: var(--space-bg);
 }
 
 .map-foot {
@@ -512,7 +556,7 @@ h1 {
 .metric-card {
   min-height: 96px;
   padding: 16px;
-  border: 1px solid rgba(216, 222, 232, 0.8);
+  border: 1px solid var(--card-border);
   border-radius: 8px;
   background: var(--panel);
 }
@@ -536,10 +580,10 @@ h1 {
   min-width: 0;
   min-height: 360px;
   padding: 18px 18px 14px;
-  border: 1px solid rgba(216, 222, 232, 0.85);
+  border: 1px solid var(--card-border);
   border-radius: 8px;
   background: var(--panel);
-  box-shadow: 0 6px 18px rgba(31, 41, 55, 0.05);
+  box-shadow: var(--shadow);
 }
 
 .chart-card header {
@@ -580,7 +624,7 @@ canvas {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  color: #49515f;
+  color: var(--legend);
   font-size: 13px;
 }
 
@@ -594,10 +638,10 @@ canvas {
   display: grid;
   place-items: center;
   min-height: 120px;
-  border: 1px dashed #c6cedb;
+  border: 1px dashed var(--empty-line);
   border-radius: 8px;
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.48);
+  background: var(--empty-bg);
 }
 
 .metric-grid > .empty {

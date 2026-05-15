@@ -5,17 +5,18 @@
     ];
 
     const COMMANDS = {
+        contest: "本地一键启动.bat",
         bridge: [
             "cd integrations\\ngimu-wifi",
-            "python run_ngimu_web_bridge.py --protocol UDP --device-port 1399 --gui-port 8000 --api-port 18000 --open-browser"
+            "python run_ngimu_web_bridge.py --protocol UDP --device-port 1399 --gui-port 8000 --api-port 18000"
         ].join("\n"),
         dashboard: [
             "cd integrations\\ngimu-wifi",
-            "python run_dashboard.py --protocol UDP --device-port 1399 --api-port 8000 --open-browser"
+            "python run_dashboard.py --protocol UDP --device-port 1399 --api-port 18000 --open-browser"
         ].join("\n"),
         simulate: [
             "cd integrations\\ngimu-wifi",
-            "python simulate_device.py --protocol UDP --host 127.0.0.1 --port 1399 --template lower-body --device-count 4"
+            "python simulate_device.py --protocol UDP --host 127.0.0.1 --port 1399 --template gait-single"
         ].join("\n")
     };
 
@@ -28,7 +29,7 @@
         pollTimer: null,
         requestInFlight: false,
         lastGoodBase: "",
-        commandMode: "bridge"
+        commandMode: "contest"
     };
 
     const dom = {};
@@ -38,7 +39,7 @@
     function init() {
         bindDom();
         bindEvents();
-        setCommand("bridge");
+        setCommand("contest");
         setConnection("warn", "正在探测本地 API");
         refresh({ probeFallback: true });
         state.pollTimer = window.setInterval(() => refresh({ probeFallback: false }), 1800);
@@ -86,6 +87,16 @@
             "sample-code",
             "hardware-status-log",
             "raw-data"
+        ].forEach((id) => {
+            dom[toCamel(id)] = document.getElementById(id);
+        });
+        [
+            "ai-pairing",
+            "ai-risk-badge",
+            "ai-summary",
+            "ai-dialogue",
+            "ai-action",
+            "ai-evidence"
         ].forEach((id) => {
             dom[toCamel(id)] = document.getElementById(id);
         });
@@ -262,6 +273,7 @@
         setText("gyroVector", vectorText(data, ["AsX", "AsY", "AsZ"], "deg/s", 1));
         setText("trackVector", vectorText(data, ["TrackX", "TrackY", "TrackZ"], "m", 3));
         dom.rawData.textContent = JSON.stringify(data, null, 2);
+        renderAiInteraction(current, data);
     }
 
     function renderEmpty() {
@@ -276,6 +288,75 @@
         dom.ngimuDevicePill.textContent = "设备 0 台";
         dom.historyCount.textContent = "0 点";
         dom.pollBadge.textContent = "离线";
+        renderAiInteraction(null, {});
+    }
+
+    function renderAiInteraction(current, data) {
+        if (!dom.aiPairing) {
+            return;
+        }
+
+        if (!current || !current.device_id) {
+            setText("aiPairing", "等待配对");
+            setText("aiRiskBadge", "待机");
+            setText("aiSummary", "等待 NGIMU 桥接数据");
+            setText("aiDialogue", "AI 将在收到实时样本后，把姿态、冲击、运动置信度和设备健康状态转成风险解释。");
+            setText("aiAction", "等待实时样本");
+            renderAiEvidence(["Acc --", "Gyro --", "Battery --"]);
+            if (dom.aiRiskBadge) {
+                dom.aiRiskBadge.dataset.level = "idle";
+            }
+            return;
+        }
+
+        const acc = numberOrNull(data.AccMagnitude);
+        const gyro = numberOrNull(data.GyroMagnitude);
+        const confidence = numberOrNull(data.MotionConfidence);
+        const battery = numberOrNull(data.ElectricPercentage);
+        const rssi = numberOrNull(data.Rssi);
+        const motion = String(data.MotionState || "未知");
+
+        const highMotion = (acc != null && acc >= 2.2) || (gyro != null && gyro >= 280) || /fall|impact|冲击|跌/i.test(motion);
+        const mediumMotion = (acc != null && acc >= 1.45) || (gyro != null && gyro >= 120) || (confidence != null && confidence < 0.45);
+        const deviceWeak = (battery != null && battery <= 15) || (rssi != null && rssi <= -85);
+
+        let level = "低风险";
+        let action = "保持观察，继续采集稳定步态样本";
+        if (highMotion) {
+            level = "高风险";
+            action = "立即核验老人状态，必要时触发人工干预";
+        } else if (mediumMotion || deviceWeak) {
+            level = "需关注";
+            action = deviceWeak ? "检查设备电量或信号，再继续监测" : "建议延长观察窗口并复核步态稳定性";
+        }
+
+        const dialogue = [
+            acc == null ? "加速度样本不足" : `加速度约 ${formatNumber(acc, 2)} g`,
+            gyro == null ? "角速度样本不足" : `角速度约 ${formatNumber(gyro, 1)} deg/s`,
+            confidence == null ? "运动置信度待估计" : `运动置信度 ${Math.round(confidence * 100)}%`
+        ].join("；");
+
+        setText("aiPairing", "NGIMU 已配对");
+        setText("aiRiskBadge", level);
+        setText("aiSummary", `${current.device_id} 已配对，当前 ${motion}，AI 判定为${level}`);
+        setText("aiDialogue", `AI：${dialogue}。${action}。`);
+        setText("aiAction", action);
+        renderAiEvidence([
+            `Acc ${acc == null ? "--" : `${formatNumber(acc, 2)}g`}`,
+            `Gyro ${gyro == null ? "--" : `${formatNumber(gyro, 1)}deg/s`}`,
+            `Battery ${battery == null ? "--" : `${formatNumber(battery, 0)}%`}`
+        ]);
+
+        if (dom.aiRiskBadge) {
+            dom.aiRiskBadge.dataset.level = level === "高风险" ? "high" : level === "需关注" ? "medium" : "low";
+        }
+    }
+
+    function renderAiEvidence(items) {
+        if (!dom.aiEvidence) {
+            return;
+        }
+        dom.aiEvidence.innerHTML = items.map((item) => `<span>${escapeHtml(item)}</span>`).join("");
     }
 
     async function clearSelectedHistory() {

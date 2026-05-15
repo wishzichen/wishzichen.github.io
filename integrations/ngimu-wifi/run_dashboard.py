@@ -4,25 +4,14 @@ import os
 import time
 import webbrowser
 
+from common import build_receiver, env_int
 from device_api import DeviceApiServer, DeviceDataStore
-from tcp_service import TcpService
-from udp_service import UdpService
 
 
 DEFAULT_DEVICE_PORT = 1399
-DEFAULT_API_PORT = 8000
+DEFAULT_API_PORT = 18000
 DEFAULT_HISTORY_LIMIT = 60000
 SUPPORTED_PROTOCOLS = {"UDP", "TCP"}
-
-
-def env_int(name, default):
-    value = os.getenv(name)
-    if value in (None, ""):
-        return default
-    try:
-        return int(value)
-    except ValueError as exc:
-        raise SystemExit(f"Environment variable {name} must be an integer, got {value!r}") from exc
 
 
 def parse_args(argv=None):
@@ -97,14 +86,6 @@ def make_update_callback(data_store, quiet=False):
         )
 
     return update_data
-
-
-def build_receiver(protocol, port, callback):
-    if protocol == "UDP":
-        return UdpService(port, callback)
-    if protocol == "TCP":
-        return TcpService(port, callback)
-    raise SystemExit(f"Unsupported DEVICE_PROTOCOL {protocol!r}; use UDP or TCP.")
 
 
 def main(argv=None):

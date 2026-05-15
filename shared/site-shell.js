@@ -3,8 +3,15 @@
     return;
   }
 
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("preview") === "1" || params.get("shell") === "0") {
+    return;
+  }
+
   const currentPath = window.location.pathname.replace(/\\/g, "/");
-  const activeKey = currentPath.includes("/system/")
+  const activeKey = currentPath.includes("/elder/")
+    ? "elder"
+    : currentPath.includes("/system/")
     ? "system"
     : currentPath.includes("/records/ngimu")
       ? "ngimu"
@@ -17,6 +24,7 @@
   const basePath = activeKey === "home" ? "./" : "../";
   const links = [
     { key: "home", label: "返回首页", href: `${basePath}index.html` },
+    { key: "elder", label: "老年友好端", href: `${basePath}elder/` },
     { key: "system", label: "系统端", href: `${basePath}system/` },
     { key: "records", label: "模型预测页", href: `${basePath}records/` },
     {
@@ -40,6 +48,9 @@
             z-index: 2147483640;
             font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
         }
+        #zhsl-site-shell[data-compact="true"] {
+            bottom: 112px;
+        }
         .zhsl-shell-toggle {
             width: 58px;
             height: 58px;
@@ -51,6 +62,10 @@
             cursor: pointer;
             box-shadow: 0 16px 40px rgba(2, 12, 23, 0.34);
             backdrop-filter: blur(14px);
+        }
+        .zhsl-shell-toggle:focus-visible {
+            outline: 3px solid rgba(125, 211, 252, 0.42);
+            outline-offset: 3px;
         }
         .zhsl-shell-panel {
             position: absolute;
@@ -109,15 +124,20 @@
 
   const root = document.createElement("div");
   root.id = "zhsl-site-shell";
+  root.dataset.compact = String(activeKey === "elder");
 
   const toggle = document.createElement("button");
   toggle.className = "zhsl-shell-toggle";
   toggle.type = "button";
   toggle.textContent = "导航";
+  toggle.setAttribute("aria-label", "打开全站导航");
+  toggle.setAttribute("aria-expanded", "false");
 
   const panel = document.createElement("div");
   panel.className = "zhsl-shell-panel";
   panel.dataset.open = "false";
+  panel.setAttribute("role", "navigation");
+  panel.setAttribute("aria-label", "全站导航");
 
   const title = document.createElement("p");
   title.className = "zhsl-shell-title";
@@ -132,6 +152,10 @@
     anchor.href = link.href;
     anchor.textContent = link.label;
     anchor.dataset.active = String(link.key === activeKey);
+    anchor.addEventListener("click", () => {
+      panel.dataset.open = "false";
+      toggle.setAttribute("aria-expanded", "false");
+    });
     list.appendChild(anchor);
   });
   panel.appendChild(list);
@@ -142,11 +166,14 @@
 
   const closePanel = () => {
     panel.dataset.open = "false";
+    toggle.setAttribute("aria-expanded", "false");
   };
 
   toggle.addEventListener("click", (event) => {
     event.stopPropagation();
-    panel.dataset.open = panel.dataset.open === "true" ? "false" : "true";
+    const open = panel.dataset.open !== "true";
+    panel.dataset.open = String(open);
+    toggle.setAttribute("aria-expanded", String(open));
   });
 
   panel.addEventListener("click", (event) => {

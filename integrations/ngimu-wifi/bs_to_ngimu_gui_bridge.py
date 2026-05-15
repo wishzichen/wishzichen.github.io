@@ -3,19 +3,8 @@ import argparse
 import os
 import time
 
+from common import build_receiver, env_int
 from ngimu_osc import FORWARDED_ADDRESSES, NgimuOscForwarder
-from tcp_service import TcpService
-from udp_service import UdpService
-
-
-def env_int(name, default):
-    value = os.getenv(name)
-    if value in (None, ""):
-        return default
-    try:
-        return int(value)
-    except ValueError as exc:
-        raise SystemExit(f"Environment variable {name} must be an integer, got {value!r}") from exc
 
 
 def parse_args(argv=None):
@@ -62,12 +51,6 @@ def parse_args(argv=None):
         help="Do not print every forwarded sample.",
     )
     return parser.parse_args(argv)
-
-
-def build_receiver(protocol, device_port, callback):
-    if protocol == "TCP":
-        return TcpService(device_port, callback)
-    return UdpService(device_port, callback)
 
 
 def main(argv=None):

@@ -136,6 +136,8 @@ def make_frame(device_id, index, role="single", phase=0.0):
     write_i16(frame, 46, 390)
     write_i16(frame, 48, -45 + math.sin(t * 0.2) * 5)
     write_i16(frame, 50, 1)
+    frame[52] = 0x0D
+    frame[53] = 0x0A
     return bytes(frame)
 
 
@@ -151,8 +153,8 @@ def parse_args(argv=None):
     )
     parser.add_argument(
         "--device-id",
-        default="BSDEMO000001",
-        help="Exactly 12 ASCII characters for the single-device template. Default: %(default)s",
+        default="BS5500000001",
+        help="Exactly 12 ASCII characters and usually starting with BS55. Default: %(default)s",
     )
     parser.add_argument(
         "--template",
@@ -197,7 +199,7 @@ def build_frame_specs(args):
             return [{"device_id": args.device_id, "role": "single", "phase": 0.0}]
         return [
             {
-                "device_id": f"BSDEMO{index + 1:06d}",
+                "device_id": f"BS55{index + 1:08d}",
                 "role": "single",
                 "phase": index * math.tau / device_count,
             }
@@ -217,7 +219,7 @@ def build_frame_specs(args):
 
     return [
         {
-            "device_id": f"BSLEG{index + 1:07d}",
+            "device_id": f"BS55LEG{index + 1:05d}",
             "role": role,
             "phase": phase,
         }

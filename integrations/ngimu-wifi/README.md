@@ -7,23 +7,33 @@
 在项目根目录双击：
 
 ```text
-RUN_NGIMU_GUI_WITH_DEVICE.bat
+本地一键启动.bat
+```
+
+该入口会自动检测当前电脑 IPv4，打印并复制 BS-IMU 里需要填写的 `UDP / Server IP / Server Port=1399`，同时启动 NGIMU GUI、当前应用网页和统一桥接器。BS-IMU 配置软件只作为调试工具，默认不打开；需要修改传感器转发目标时再使用根目录 `打开BS_IMU配置软件.bat`。只启动桥接器时再使用根目录 `启动硬件桥接.bat`。
+
+多网卡环境下如需指定转发 IP，可在根目录运行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\start-local-lab.ps1 -Mode Full -DeviceIP 你的本机IPv4
 ```
 
 或者手动启动 GUI + Web 统一桥接器：
 
 ```powershell
 cd integrations\ngimu-wifi
-python run_ngimu_web_bridge.py --protocol UDP --device-port 1399 --gui-port 8000 --api-port 18000 --open-browser
+python run_ngimu_web_bridge.py --protocol UDP --device-port 1399 --gui-port 8000 --api-port 18000
 ```
 
-然后在 NGIMU GUI 里连接默认 UDP：接收端口 `8000`。Web 看板地址是 `http://127.0.0.1:18000/`。设备侧发送到电脑 IPv4，协议 `UDP`，端口 `1399`。
+然后在 NGIMU GUI 里连接默认 UDP：接收端口 `8000`。当前应用硬件页地址是 `http://127.0.0.1:8080/records/ngimu.html`，桥接 API 是 `http://127.0.0.1:18000/api`。设备侧发送到电脑 IPv4，协议 `UDP`，端口 `1399`。
+
+> 端口提醒：BS-IMU 配置软件如果正在运行会占用 `1399` 端口。如果桥接器收不到数据，请先关闭 BS-IMU 配置软件。
 
 桥接器会补充发送 `/magnitudes`、`/quaternion`、`/matrix`、`/linear`、`/earth`、`/altitude` 等 NGIMU GUI 需要的数据。由于当前 54 字节设备帧没有 GPS 经纬度，Web 端默认不生成真实地图轨迹；“3D 坐标轨迹”使用参考 Gait-Tracking 的 `imufusion` AHRS、移动段检测和 ZUPT 速度漂移修正，适合观察单 IMU 步态三维轨迹、漂移和空间变化，但不是真实地理定位。
 
-启动桥接器后命令行会打印 `Forwarded OSC addresses`。如果 NGIMU GUI 的 Terminal 里没有 `/linear`、`/earth`、`/altitude`，请先关掉旧桥接窗口，再重新运行根目录的 `RUN_NGIMU_GUI_WITH_DEVICE.bat`。
+启动桥接器后命令行会打印 `Forwarded OSC addresses`。如果 NGIMU GUI 的 Terminal 里没有 `/linear`、`/earth`、`/altitude`，请先运行 `python diagnose_bridge.py` 检查端口，再确认 BS-WF91 的 UDP 服务器端口和 `--device-port` 一致。
 
-Web 看板已包含 3D 姿态、三维空间诊断、定位轨迹和下肢模板。3D 姿态会加载项目自带的 NGIMU 真实外壳 OBJ 模型；定位轨迹只在收到 `Latitude`/`Longitude` 时显示 GPS 轨迹。没有 GPS 时页面会明确提示无定位数据，`PositionX/Y/Z` 只在手动切换到“运动诊断”时显示，不能当作真实地图定位。
+Web 看板已包含 3D 姿态、三维空间诊断、定位轨迹和下肢模板，默认使用夜间模式；顶部“白天模式/夜间模式”按钮可以在白色调和深色调之间切换。3D 姿态会加载项目自带的 NGIMU 真实外壳 OBJ 模型；定位轨迹只在收到 `Latitude`/`Longitude` 时显示 GPS 轨迹。没有 GPS 时页面会明确提示无定位数据，`PositionX/Y/Z` 只在手动切换到“运动诊断”时显示，不能当作真实地图定位。
 
 单 IMU 的 3D 轨迹字段是 `TrackX`、`TrackY`、`TrackZ`。运动中会先显示 preliminary 轨迹；当检测到脚步/设备重新静止时，会像 Gait-Tracking 示例那样回填修正这一整段历史点，页面中的 3D 点线会自动变成 corrected 轨迹。
 
@@ -32,7 +42,7 @@ Web 看板已包含 3D 姿态、三维空间诊断、定位轨迹和下肢模板
 原 NGIMU GUI 不带设备 ID 维度，不能在一个 GUI 窗口里可靠区分两台设备。`run_ngimu_web_bridge.py` 默认 `--gui-forward-mode first`，只把第一台收到的设备转发给 GUI，Web 端仍显示全部设备。需要指定 GUI 跟随某台设备时可加：
 
 ```powershell
-python run_ngimu_web_bridge.py --gui-device-filter BSDEMO000001 --open-browser
+python run_ngimu_web_bridge.py --gui-device-filter BS5500000103 --open-browser
 ```
 
 ## 快速打开
@@ -46,12 +56,12 @@ cd integrations\ngimu-wifi
 2. 单独启动看板：
 
 ```powershell
-python run_dashboard.py --protocol UDP --device-port 1399 --api-port 8000 --open-browser
+python run_dashboard.py --protocol UDP --device-port 1399 --api-port 18000 --open-browser
 ```
 
 也可以直接双击 `run_dashboard.bat`。
 
-如果要和 NGIMU GUI 同时开，请用 `run_ngimu_web_bridge.py` 或根目录 `RUN_NGIMU_GUI_WITH_DEVICE.bat`，不要同时再开 `run_dashboard.py`，避免两个进程争用设备端口 `1399`。
+如果要和 NGIMU GUI 同时开，请用 `run_ngimu_web_bridge.py` 或根目录 `启动硬件桥接.bat`，不要同时再开 `run_dashboard.py`，避免两个进程争用设备转发端口。
 
 3. 浏览器打开：
 
@@ -65,9 +75,9 @@ http://127.0.0.1:8000/
 
 - 默认协议：`UDP`
 - 默认设备转发端口：`1399`
-- 默认网页/API 端口：`8000`
+- 默认网页/API 端口：`18000`
 
-查看电脑 IPv4：
+查看电脑 IPv4 可以直接运行根目录一键启动器，它会自动选择并打印推荐地址；也可以手动查看：
 
 ```powershell
 ipconfig
@@ -76,7 +86,7 @@ ipconfig
 如果设备必须用 TCP：
 
 ```powershell
-python run_dashboard.py --protocol TCP --device-port 1399 --api-port 8000 --open-browser
+python run_dashboard.py --protocol TCP --device-port 1399 --api-port 18000 --open-browser
 ```
 
 ## 没有设备时测试页面
@@ -93,7 +103,7 @@ python run_dashboard.py --open-browser
 python simulate_device.py --protocol UDP --host 127.0.0.1 --port 1399
 ```
 
-页面应能看到设备 `BSDEMO000001` 和实时曲线。
+页面应能看到设备 `BS5500000001` 和实时曲线。
 
 测试单 IMU Gait-Tracking 风格的 3D 坐标轨迹：
 
@@ -132,6 +142,7 @@ DELETE http://127.0.0.1:8000/api/devices/{device_id}/history
 检查占用：
 
 ```powershell
+python diagnose_bridge.py --device-port 1399 --gui-port 8000 --api-port 18000
 netstat -ano -p udp | findstr :1399
 netstat -ano -p tcp | findstr :8000
 ```
@@ -139,7 +150,7 @@ netstat -ano -p tcp | findstr :8000
 换端口启动：
 
 ```powershell
-python run_dashboard.py --device-port 1400 --api-port 8010 --open-browser
+python run_dashboard.py --device-port 1401 --api-port 8010 --open-browser
 ```
 
-这时设备侧也要把转发端口改成 `1400`。
+这时设备侧也要把转发端口改成 `1401`。

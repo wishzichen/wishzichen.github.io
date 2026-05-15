@@ -1,0 +1,3 @@
+<GraphSettings Title="Altimeter" YAxisLabel="Altitude (m)" GraphType="Timestamp" RollMode="False" ShowLegend="False" AxesRange="-10,-1,0,1" HorizontalAutoscaleIndex="-1" VerticalAutoscaleIndex="2147483647">
+  <Trace Name="Altitude" Color="#FFFFFF00" BlockSize="256" MaxDataPoints="24000" />
+</GraphSettings>

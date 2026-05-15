@@ -2,14 +2,11 @@
 import socket
 import threading
 
-from device_model import DeviceModel
+from common import dispatch_frame, parse_frame_buffer
 
 
 class TcpService:
     """Receive sensor frames over TCP and dispatch parsed device updates."""
-
-    FRAME_LEN = 54
-    DEVICE_ID_LEN = 12
 
     def __init__(self, port, callback_method):
         self.port = port
@@ -44,10 +41,10 @@ class TcpService:
         self.isOpen = True
 
         print(f"TCP server listening on 0.0.0.0:{self.port}")
-        self._thread = threading.Thread(target=self.onReceive, name="TcpService", daemon=True)
+        self._thread = threading.Thread(target=self._accept_loop, name="TcpService", daemon=True)
         self._thread.start()
 
-    def onReceive(self):
+    def _accept_loop(self):
         while self.isOpen:
             try:
                 client_socket, client_address = self.socket.accept()
@@ -67,8 +64,7 @@ class TcpService:
             thread.start()
 
     def _handle_client(self, client_socket, client_address):
-        temp_buffer = []
-        current_device_id = ""
+        buf = bytearray()
         remote = f"{client_address[0]}:{client_address[1]}"
 
         try:
@@ -77,47 +73,17 @@ class TcpService:
                     data = client_socket.recv(4096)
                     if not data:
                         break
-                    current_device_id = self._feed_bytes(
-                        data, temp_buffer, current_device_id, remote
-                    )
+
+                    def dispatch(frame, _r=remote):
+                        dispatch_frame(frame, self.deviceList, self.callback_method, _r)
+
+                    buf.extend(data)
+                    parse_frame_buffer(buf, dispatch)
         except OSError as exc:
             if self.isOpen:
                 print(f"TCP client error from {remote}: {exc}")
         except Exception as exc:
             print(f"TCP receive error from {remote}: {exc}")
-
-    def _feed_bytes(self, data, temp_buffer, current_device_id, remote):
-        for value in data:
-            temp_buffer.append(value)
-
-            if len(temp_buffer) == 2 and (
-                temp_buffer[0] != 0x42 or temp_buffer[1] != 0x53
-            ):
-                del temp_buffer[0]
-                continue
-
-            if len(temp_buffer) == self.DEVICE_ID_LEN:
-                try:
-                    current_device_id = bytes(temp_buffer).decode("ascii")
-                except UnicodeDecodeError:
-                    del temp_buffer[0]
-                    current_device_id = ""
-                    continue
-
-                if current_device_id not in self.deviceList:
-                    self.deviceList[current_device_id] = DeviceModel(
-                        current_device_id, self.callback_method
-                    )
-
-            if len(temp_buffer) == self.FRAME_LEN:
-                device = self.deviceList.get(current_device_id)
-                if device:
-                    device.lastAddress = remote
-                    device.onDataReceived(temp_buffer)
-                temp_buffer.clear()
-                current_device_id = ""
-
-        return current_device_id
 
     def stop(self):
         self.isOpen = False

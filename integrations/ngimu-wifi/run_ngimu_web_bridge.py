@@ -4,20 +4,9 @@ import os
 import time
 import webbrowser
 
+from common import build_receiver, env_int
 from device_api import DeviceApiServer, DeviceDataStore
 from ngimu_osc import FORWARDED_ADDRESSES, NgimuOscForwarder
-from tcp_service import TcpService
-from udp_service import UdpService
-
-
-def env_int(name, default):
-    value = os.getenv(name)
-    if value in (None, ""):
-        return default
-    try:
-        return int(value)
-    except ValueError as exc:
-        raise SystemExit(f"Environment variable {name} must be an integer, got {value!r}") from exc
 
 
 def parse_args(argv=None):
@@ -96,18 +85,14 @@ def parse_args(argv=None):
     return parser.parse_args(argv)
 
 
-def build_receiver(protocol, device_port, callback):
-    if protocol == "TCP":
-        return TcpService(device_port, callback)
-    return UdpService(device_port, callback)
-
-
 def main(argv=None):
     args = parse_args(argv)
     store = DeviceDataStore(history_limit=args.history_limit)
     server = DeviceApiServer(store, host=args.api_host, port=args.api_port)
     forwarder = NgimuOscForwarder(args.gui_host, args.gui_port)
     gui_device_id = None
+    frame_count = 0
+    no_data_warning_printed = False
 
     def should_forward_to_gui(device_id):
         nonlocal gui_device_id
@@ -128,9 +113,11 @@ def main(argv=None):
         return device_id == gui_device_id
 
     def handle_frame(device_model):
+        nonlocal frame_count
         if args.device_filter and device_model.deviceName != args.device_filter:
             return
 
+        frame_count += 1
         snapshot = store.update(device_model)
         if should_forward_to_gui(device_model.deviceName):
             forwarder.send_device_model(device_model)
@@ -140,9 +127,10 @@ def main(argv=None):
 
         data = snapshot["data"]
         print(
-            "device={device} Acc=({acc_x},{acc_y},{acc_z}) "
+            "device={device} from={address} Acc=({acc_x},{acc_y},{acc_z}) "
             "Euler=({roll},{pitch},{yaw}) Linear=({lin_x},{lin_y},{lin_z})".format(
                 device=snapshot["device_id"],
+                address=snapshot.get("address") or "--",
                 acc_x=data.get("AccX"),
                 acc_y=data.get("AccY"),
                 acc_z=data.get("AccZ"),
@@ -184,11 +172,27 @@ def main(argv=None):
     print(f"Web dashboard: {server.local_url}")
     print("Web monitors every received device. The original NGIMU GUI should receive one device unless --gui-forward-mode all is used.")
     print("In NGIMU GUI, open the default UDP connection with Receive Port 8000.")
+    print(
+        f"If BS-IMU is open, configure BS-WF91 data forwarding to UDP <this PC IPv4>:{args.device_port}. "
+        "Do not let BS-IMU and this bridge listen on the same device port."
+    )
     print("Press Ctrl+C to stop this bridge.")
 
     try:
+        started_at = time.time()
         while True:
             time.sleep(1)
+            if (
+                not no_data_warning_printed
+                and frame_count == 0
+                and time.time() - started_at >= 8
+            ):
+                no_data_warning_printed = True
+                print(
+                    f"No BS55 frames received on {args.protocol} port {args.device_port} yet. "
+                    "Check BS-IMU forwarding IP/port, Windows firewall, and whether another program owns the port. "
+                    "Run `python diagnose_bridge.py` for a quick check."
+                )
     except KeyboardInterrupt:
         print("\nStopping...")
     finally:

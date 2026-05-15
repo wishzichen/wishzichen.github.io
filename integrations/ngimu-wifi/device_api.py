@@ -308,7 +308,7 @@ class DeviceApiServer:
         self.static_root = Path(static_root) if static_root else Path(__file__).parent / "web"
         project_root = Path(__file__).resolve().parent.parent
         self.asset_roots = {
-            "3d": project_root / "NgimuGui" / "3DView",
+            "3d": project_root / "ngimu-gui" / "3DView",
         }
         self._httpd = None
         self._thread = None

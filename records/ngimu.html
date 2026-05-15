@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NGIMU 硬件接入 · 智守银龄</title>
     <meta name="description" content="智守银龄 NGIMU/WiFi IMU 硬件接入面板，支持本地桥接 API、设备列表、实时传感数据和三维轨迹状态查看。">
-    <link rel="stylesheet" href="./static/css/style.css?v=20260429-ngimu">
+    <link rel="stylesheet" href="./static/css/style.css?v=20260504-ngimu-ai">
 </head>
 <body>
     <div class="dot-grid"></div>
@@ -44,7 +44,7 @@
                 <div class="card-header card-header-wide">
                     <div>
                         <h3>本地桥接 API</h3>
-                        <p class="card-copy">面向 WiFi IMU/NGIMU 数据流的本地接入面板，默认匹配统一桥接器 `18000` 与独立看板 `8000` 两种端口。</p>
+                        <p class="card-copy">NGIMU GUI、桥接 API 与当前应用共用同一条实时传感数据链路。</p>
                     </div>
                     <div class="hardware-actions">
                         <button type="button" class="tool-btn" id="api-cycle">切换端口</button>
@@ -89,6 +89,32 @@
                     <div class="stat-box">
                         <span>最近更新</span>
                         <strong id="latest-seen">--</strong>
+                    </div>
+                </div>
+            </section>
+
+            <section class="glass-card compact hardware-ai-card">
+                <div class="card-header row-header">
+                    <div>
+                        <h3>AI 实时交互</h3>
+                        <p class="card-copy">社区护理场景的实时风险解释与干预建议。</p>
+                    </div>
+                    <span class="badge badge-cyan" id="ai-pairing">等待配对</span>
+                </div>
+                <div class="ai-live-grid">
+                    <div class="ai-dialogue">
+                        <span id="ai-risk-badge">待机</span>
+                        <strong id="ai-summary">等待 NGIMU 桥接数据</strong>
+                        <p id="ai-dialogue">AI 等待本地桥接样本，当前无可评估数据。</p>
+                    </div>
+                    <div class="ai-action-box">
+                        <span>建议动作</span>
+                        <strong id="ai-action">等待实时样本</strong>
+                        <div class="ai-evidence" id="ai-evidence">
+                            <span>Acc --</span>
+                            <span>Gyro --</span>
+                            <span>Battery --</span>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -213,14 +239,14 @@
                 <div class="card-header row-header">
                     <h3>接收端启动</h3>
                     <div class="hardware-actions">
-                        <button type="button" class="tool-btn active command-mode" data-command="bridge">统一桥接器</button>
+                        <button type="button" class="tool-btn active command-mode" data-command="contest">比赛联调</button>
+                        <button type="button" class="tool-btn command-mode" data-command="bridge">统一桥接器</button>
                         <button type="button" class="tool-btn command-mode" data-command="dashboard">独立看板</button>
                         <button type="button" class="tool-btn command-mode" data-command="simulate">模拟设备</button>
                         <button type="button" class="tool-btn" id="copy-command">复制命令</button>
                     </div>
                 </div>
-                <pre class="hardware-command"><code id="sample-code">cd integrations\ngimu-wifi
-python run_ngimu_web_bridge.py --protocol UDP --device-port 1399 --gui-port 8000 --api-port 18000 --open-browser</code></pre>
+                <pre class="hardware-command"><code id="sample-code">本地一键启动.bat</code></pre>
             </section>
 
             <div class="panel-grid panel-grid-two hardware-split">
@@ -243,7 +269,7 @@ python run_ngimu_web_bridge.py --protocol UDP --device-port 1399 --gui-port 8000
         </div>
     </div>
 
-    <script src="../shared/site-shell.js?v=20260429-ngimu"></script>
-    <script src="./static/js/ngimu-bridge.js?v=20260429"></script>
+    <script src="../shared/site-shell.js?v=20260504-ngimu-ai"></script>
+    <script src="./static/js/ngimu-bridge.js?v=20260504-ngimu-ai"></script>
 </body>
 </html>
