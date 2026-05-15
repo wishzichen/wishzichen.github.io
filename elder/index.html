@@ -3,17 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>老年友好端 · 智守银龄</title>
+    <title>智守银龄长者版</title>
     <meta
       name="description"
-      content="智守银龄老年友好用户端，提供大字版健康提醒、步行检测、步态趋势、家属关怀和无障碍设置。"
+      content="智守银龄长者版，提供大字健康提醒、步行记录、步态趋势、家属关怀和无障碍设置。"
     />
     <link
       rel="icon"
       type="image/svg+xml"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.86em' font-size='82'%3E%E7%9B%BE%3C/text%3E%3C/svg%3E"
     />
-    <link rel="stylesheet" href="./static/css/style.css?v=20260515-elder" />
+    <link rel="stylesheet" href="./static/css/style.css?v=20260516-product" />
   </head>
   <body>
     <svg class="icon-sprite" aria-hidden="true">
@@ -44,6 +44,11 @@
       <symbol id="icon-bell" viewBox="0 0 24 24">
         <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z" />
         <path d="M10 21h4" />
+      </symbol>
+      <symbol id="icon-volume" viewBox="0 0 24 24">
+        <path d="M11 5 6 9H3v6h3l5 4V5Z" />
+        <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+        <path d="M18.5 5.5a9 9 0 0 1 0 13" />
       </symbol>
       <symbol id="icon-shield" viewBox="0 0 24 24">
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
@@ -122,9 +127,9 @@
             <svg class="ui-icon"><use href="#icon-shield"></use></svg>
           </span>
           <div class="brand-copy">
-            <p class="eyebrow">老年友好端</p>
+            <p class="eyebrow">长者版</p>
             <h1>智守银龄</h1>
-            <p>大字版步态守护与家属关怀中枢</p>
+            <p>大字步态守护与家人安心关怀</p>
           </div>
         </div>
 
@@ -132,10 +137,14 @@
           <span class="status-chip" id="chip-live">守护中</span>
           <span class="status-chip" id="chip-risk">低风险</span>
           <span class="status-chip" id="chip-mode">简洁模式</span>
-          <span class="status-chip subtle" id="chip-sync">本地同步</span>
+          <span class="status-chip subtle" id="chip-sync">已同步</span>
         </div>
 
         <div class="top-actions">
+          <button class="toolbar-btn" id="speak-page" type="button">
+            <svg class="ui-icon"><use href="#icon-volume"></use></svg>
+            <span>朗读</span>
+          </button>
           <button class="toolbar-btn" id="open-report" type="button">
             <svg class="ui-icon"><use href="#icon-report"></use></svg>
             <span>周报</span>
@@ -153,7 +162,7 @@
             <div>
               <p class="screen-kicker">首页</p>
               <h2 id="overview-title">今天的健康提醒</h2>
-              <p class="screen-copy">保留专业判断，但把老人和家属最关心的信息放在第一屏。</p>
+              <p class="screen-copy">把今天是否安全、该做什么、家人是否收到消息放在第一屏。</p>
             </div>
             <div class="screen-actions">
               <button class="toolbar-btn primary" data-jump="walk" type="button">
@@ -265,7 +274,7 @@
             <div>
               <p class="screen-kicker">步行检测</p>
               <h2 id="walk-title">慢慢走 6 分钟</h2>
-              <p class="screen-copy">用大按钮完成演示采集，记录会保存在本地浏览器。</p>
+              <p class="screen-copy">按下开始后像平时一样慢慢走，完成后保存到今天的健康记录。</p>
             </div>
             <div class="screen-actions">
               <button class="toolbar-btn primary" id="walk-toggle" type="button">
@@ -284,7 +293,7 @@
               <div class="session-copy">
                 <span class="live-badge" id="walk-session-status">准备开始检测</span>
                 <h3>像平时一样慢慢走</h3>
-                <p>页面会模拟采集步数、速度和稳定分，适合比赛演示和无硬件预览。</p>
+                <p>走路时注意脚下，系统会记录步数、速度和稳定分，帮助家人了解今天状态。</p>
                 <div class="progress-line"><span id="walk-progress-line"></span></div>
               </div>
               <div class="ring-wrap">
@@ -298,7 +307,7 @@
             <article class="panel">
               <div class="metric-grid">
                 <div class="metric-card">
-                  <span>采集步数</span>
+                  <span>记录步数</span>
                   <strong id="walk-steps">0</strong>
                 </div>
                 <div class="metric-card advanced-only">
@@ -451,12 +460,12 @@
             <div>
               <p class="screen-kicker">关怀中心</p>
               <h2 id="care-title">家属、社区医生与紧急联系</h2>
-              <p class="screen-copy">把求助、提醒和周报放到同一条照护链路里。</p>
+              <p class="screen-copy">需要帮助时马上联系，平时把健康变化同步给家人。</p>
             </div>
             <div class="screen-actions">
               <button class="toolbar-btn primary danger" id="care-emergency-call" type="button">
                 <svg class="ui-icon"><use href="#icon-phone"></use></svg>
-                <span>立即呼叫</span>
+                <span>紧急联系</span>
               </button>
             </div>
           </div>
@@ -464,12 +473,12 @@
           <article class="panel emergency-panel">
             <div>
               <span class="live-badge warm">紧急协助</span>
-              <h3>一键呼叫帮助</h3>
-              <p>检测到跌倒或不适时，可立即通知家属与社区医生。</p>
+              <h3>需要帮助，马上通知</h3>
+              <p>身体不舒服或担心摔倒时，可立即联系家属与社区医生。</p>
             </div>
             <button class="call-button" id="care-emergency-call-wide" type="button">
               <svg class="ui-icon"><use href="#icon-phone"></use></svg>
-              <span>模拟呼叫</span>
+              <span>通知联系人</span>
             </button>
           </article>
 
@@ -507,7 +516,7 @@
                 </div>
                 <button class="small-link" id="care-open-report" type="button">
                   <svg class="ui-icon"><use href="#icon-report"></use></svg>
-                  <span>PDF</span>
+                  <span>查看</span>
                 </button>
               </div>
               <div class="stack-list compact" id="weekly-summary"></div>
@@ -600,7 +609,7 @@
                 <label class="toggle-row">
                   <span>
                     <strong>语音提醒</strong>
-                    <small>重要提醒会用语音读出来</small>
+                    <small>重要操作和提醒会用语音读出来</small>
                   </span>
                   <input id="toggle-voice" type="checkbox" />
                 </label>
@@ -622,7 +631,7 @@
                 </div>
                 <span class="count-pill" id="sensitivity-label">72%</span>
               </div>
-              <p class="card-copy">数值越高越早提醒，适合需要家人多关注时打开。</p>
+              <p class="card-copy">数值越高越早提醒，需要家人多关注时可以调高。</p>
               <input id="risk-sensitivity" class="range-control" type="range" min="0.3" max="1" step="0.01" />
             </article>
           </div>
@@ -638,7 +647,7 @@
       </main>
     </div>
 
-    <nav class="bottom-nav" aria-label="老年友好端页面导航">
+    <nav class="bottom-nav" aria-label="智守银龄长者版页面导航">
       <button class="nav-btn is-active" type="button" data-nav="overview">
         <svg class="ui-icon"><use href="#icon-home"></use></svg>
         <span>首页</span>
@@ -709,7 +718,7 @@
           <button class="toolbar-btn secondary" data-close-modal type="button">关闭</button>
           <button class="toolbar-btn primary" id="report-print" type="button">
             <svg class="ui-icon"><use href="#icon-report"></use></svg>
-            <span>打印成 PDF</span>
+            <span>打印或保存</span>
           </button>
         </div>
       </div>
@@ -717,7 +726,7 @@
 
     <div class="toast-zone" id="toast-zone" aria-live="polite" aria-atomic="true"></div>
 
-    <script src="../shared/site-shell.js?v=20260515-elder"></script>
-    <script src="./static/js/app.js?v=20260515-elder"></script>
+    <script src="../shared/site-shell.js?v=20260516-product"></script>
+    <script src="./static/js/app.js?v=20260516-product"></script>
   </body>
 </html>

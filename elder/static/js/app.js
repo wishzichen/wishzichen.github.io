@@ -29,8 +29,8 @@
       id: "weekly_report",
       icon: "report",
       color: "teal",
-      title: "社区医生周报已生成",
-      detail: "包含步态对称性、活动趋势和干预建议。",
+      title: "本周健康摘要已更新",
+      detail: "家人可以查看步态变化、活动趋势和照护建议。",
       action: "查看",
       shouldStore: false,
     },
@@ -299,13 +299,13 @@
       return [
         "本周没有明显跌倒风险。",
         "走路整体比上周更稳。",
-        "建议增加一次社区陪伴步行。",
+        "建议本周安排一次家人陪伴散步。",
       ];
     }
     return [
       "本周无跌倒预警，夜间活动平稳。",
       "步态对称性平均 90 分，较上周提升。",
-      "建议增加一次社区陪伴步行并复核鞋垫校准。",
+      "建议安排一次家人陪伴散步，并确认随身设备佩戴舒适。",
     ];
   }
 
@@ -469,7 +469,7 @@
     if (!reminder) return;
     if (id === "comfort_walk") {
       setScreen("walk");
-      notify("已进入步行检测页，可以点击开始检测。", "success");
+      notify("已进入步行检测页，可以点击开始记录。", "success", { speak: true });
       return;
     }
     if (id === "weekly_report") {
@@ -492,7 +492,7 @@
     });
     saveState();
     renderAll();
-    notify(`${reminder.title}已保存到今日提醒历史。`, "success");
+    notify(`${reminder.title}已确认，已经保存到今日提醒历史。`, "success", { speak: true });
   }
 
   function emptyCard(message) {
@@ -500,7 +500,7 @@
     card.className = "history-card";
     card.innerHTML = `
       <span class="list-icon">${icon("check")}</span>
-      <span class="list-main"><strong>${escapeHtml(message)}</strong><small>本地演示数据会保存在浏览器中。</small></span>
+      <span class="list-main"><strong>${escapeHtml(message)}</strong><small>记录会保存在这台设备上，方便下次继续查看。</small></span>
     `;
     return card;
   }
@@ -581,7 +581,7 @@
     clearInterval(walkTimer);
     walkTimer = setInterval(tickWalkSession, TICK_MS);
     renderAll();
-    notify("步行检测已开始，演示时钟会加速推进。", "success");
+    notify("步行记录已开始，请慢慢走，注意脚下安全。", "success", { speak: true });
   }
 
   function pauseWalkSession() {
@@ -589,7 +589,7 @@
     walkTimer = null;
     state.walking.isDetecting = false;
     renderAll();
-    notify("步行检测已暂停，可随时继续。", "warn");
+    notify("步行记录已暂停，休息好后可以继续。", "warn", { speak: true });
   }
 
   function tickWalkSession() {
@@ -624,7 +624,7 @@
     state.walking.steps = 0;
     saveState();
     renderAll();
-    notify(auto ? "6 分钟步行检测已完成并保存。" : "本次步行检测已保存。", "success");
+    notify(auto ? "6 分钟步行记录已完成并保存。" : "本次步行记录已保存。", "success", { speak: true });
   }
 
   function renderGait() {
@@ -832,7 +832,7 @@
         </span>
       `;
       card.querySelector("button").addEventListener("click", () => {
-        notify(`正在模拟呼叫 ${contact.name}。`, "success");
+        notify(`正在为您联系 ${contact.name}，请稍等。`, "success", { speak: true });
       });
       container.appendChild(card);
     });
@@ -906,6 +906,7 @@
       </article>
     `;
     openModal("report-modal");
+    speak("健康周报已打开。综合结论和本周建议已经显示在屏幕上。");
   }
 
   function printReport() {
@@ -943,6 +944,7 @@
     reportWindow.document.close();
     reportWindow.focus();
     setTimeout(() => reportWindow.print(), 250);
+    notify("健康周报已打开，可以打印或保存。", "success", { speak: true });
   }
 
   function openModal(id) {
@@ -960,12 +962,53 @@
     });
   }
 
-  function notify(message, tone = "info") {
+  function speak(message, options = {}) {
+    if (!message || !("speechSynthesis" in window)) {
+      return;
+    }
+    if (!options.force && !state.settings.voiceReminder) {
+      return;
+    }
+    const text = String(message).replace(/[，。！？,.!?]*$/, "。");
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "zh-CN";
+    utterance.rate = 0.88;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function screenSpeechText() {
+    const risk = getRiskAssessment();
+    const screen = state.activeScreen;
+    if (screen === "overview") {
+      return `首页。今天步态比较稳，${risk.label}。如需检测，请点击开始检测。`;
+    }
+    if (screen === "walk") {
+      return state.walking.isDetecting
+        ? "步行记录正在进行。请慢慢走，注意脚下安全。"
+        : "步行检测页。点击开始记录后，像平时一样慢慢走六分钟。";
+    }
+    if (screen === "gait") {
+      const profile = getProfile();
+      return `步态趋势。${profile.status}，平衡分 ${Math.round(profile.score * 100)} 分。${profile.summary}`;
+    }
+    if (screen === "care") {
+      return "关怀中心。可以联系家人、社区医生，也可以查看健康周报。紧急情况请点击紧急联系。";
+    }
+    return "设置页。可以调整字体大小、显示模式、语音提醒和提醒灵敏度。";
+  }
+
+  function notify(message, tone = "info", options = {}) {
     const zone = byId("toast-zone");
     const toast = document.createElement("div");
     toast.className = `toast ${tone}`;
     toast.textContent = message;
     zone.appendChild(toast);
+    if (options.speak) {
+      speak(options.speechText || message);
+    }
     setTimeout(() => {
       toast.style.opacity = "0";
       toast.style.transform = "translateY(-6px)";
@@ -991,7 +1034,7 @@
     state.riskSensitivity = base.riskSensitivity;
     saveState();
     renderAll();
-    notify("字体、模式和提醒开关已恢复默认。", "success");
+    notify("字体、显示和提醒设置已恢复默认。", "success", { speak: true });
   }
 
   function bindEvents() {
@@ -1017,16 +1060,17 @@
       state.calibratedAt = Date.now();
       saveState();
       renderAll();
-      notify("步态校准已完成，之后看走路数据会更准确。", "success");
+      notify("步态校准已完成，之后看走路数据会更准确。", "success", { speak: true });
     });
 
-    byId("care-emergency-call").addEventListener("click", () => notify("已发送模拟求助通知。", "danger"));
-    byId("care-emergency-call-wide").addEventListener("click", () => notify("已发送模拟求助通知。", "danger"));
+    byId("care-emergency-call").addEventListener("click", () => notify("正在通知紧急联系人，请保持电话畅通。", "danger", { speak: true }));
+    byId("care-emergency-call-wide").addEventListener("click", () => notify("正在通知紧急联系人，请保持电话畅通。", "danger", { speak: true }));
     byId("care-add-contact").addEventListener("click", openContactModal);
     byId("contact-save").addEventListener("click", saveContact);
     byId("open-report").addEventListener("click", openReportModal);
     byId("care-open-report").addEventListener("click", openReportModal);
     byId("report-print").addEventListener("click", printReport);
+    byId("speak-page").addEventListener("click", () => speak(screenSpeechText(), { force: true }));
     byId("modal-backdrop").addEventListener("click", closeModals);
     document.querySelectorAll("[data-close-modal]").forEach((button) => {
       button.addEventListener("click", closeModals);
@@ -1036,13 +1080,13 @@
       state.care.medicineReminder = event.currentTarget.checked;
       saveState();
       renderAll();
-      notify(state.care.medicineReminder ? "服药提醒已开启。" : "服药提醒已关闭。", "success");
+      notify(state.care.medicineReminder ? "服药提醒已开启。" : "服药提醒已关闭。", "success", { speak: true });
     });
     byId("toggle-family-share").addEventListener("change", (event) => {
       state.care.familyShare = event.currentTarget.checked;
       saveState();
       renderAll();
-      notify(state.care.familyShare ? "家属共享已开启。" : "家属共享已关闭。", "success");
+      notify(state.care.familyShare ? "家属共享已开启。" : "家属共享已关闭。", "success", { speak: true });
     });
 
     byId("font-scale").addEventListener("input", (event) => {
@@ -1064,6 +1108,12 @@
       state.settings.voiceReminder = event.currentTarget.checked;
       saveState();
       renderAll();
+      if (state.settings.voiceReminder) {
+        speak("语音提醒已开启。重要提醒会读给您听。", { force: true });
+      } else {
+        window.speechSynthesis?.cancel();
+        notify("语音提醒已关闭。", "success");
+      }
     });
     byId("toggle-fall").addEventListener("change", (event) => {
       state.settings.fallAlert = event.currentTarget.checked;

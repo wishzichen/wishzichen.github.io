@@ -24,7 +24,7 @@
   const basePath = activeKey === "home" ? "./" : "../";
   const links = [
     { key: "home", label: "返回首页", href: `${basePath}index.html` },
-    { key: "elder", label: "老年友好端", href: `${basePath}elder/` },
+    { key: "elder", label: "长者版", href: `${basePath}elder/` },
     { key: "system", label: "系统端", href: `${basePath}system/` },
     { key: "records", label: "模型预测页", href: `${basePath}records/` },
     {

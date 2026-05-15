@@ -175,7 +175,7 @@ function Get-FreeTcpPort {
 function Test-ProjectPreview {
     param([int]$Port)
     try {
-        $response = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:$Port/records/ngimu.html" -TimeoutSec 2
+        $response = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:$Port/" -TimeoutSec 2
         return [int]$response.StatusCode -eq 200
     } catch {
         return $false
@@ -418,7 +418,7 @@ try {
     Start-Bridge -Python $python
 
     if ($Mode -eq "Full") {
-        $appUrl = "http://127.0.0.1:$webPortActual/records/ngimu.html"
+        $appUrl = "http://127.0.0.1:$webPortActual/"
         Open-Url -Url $appUrl
     }
 
